@@ -67,3 +67,29 @@ def analyze_csv(django_file):
         pass
 
     return df, header, rows, cols
+
+
+import re
+from pathlib import Path
+from apps.catalogs.models import Store
+
+STORE_HINTS = {
+    "292": "CASINO M KOM",
+    "230": "CASINO PRIMA",
+    "294": "SOL BENI",
+}
+
+_store_code_re = re.compile(r"^(\d{2,5})x", re.IGNORECASE)
+
+def infer_store_from_filename(file_path_or_name: str):
+    name = Path(file_path_or_name).name
+    m = _store_code_re.match(name)
+    if not m:
+        return None, None
+    code = m.group(1)
+    # priorité DB si magasin existe
+    store = Store.objects.filter(code=code).first()
+    if store:
+        return store.code, store.name
+    # fallback dictionnaire
+    return code, STORE_HINTS.get(code, None)

@@ -1,6 +1,7 @@
 from django.db import models
 from django.conf import settings
 from apps.catalogs.models import ConfigCategory
+from pathlib import Path
 
 class FileSource(models.TextChoices):
     WEB1 = "web1", "Site Web 1"
@@ -18,6 +19,14 @@ class Dataset(models.Model):
     rows = models.PositiveIntegerField(default=0)
     columns = models.PositiveIntegerField(default=0)
     header = models.JSONField(default=list)
+    
+    store_code = models.CharField(max_length=10, blank=True, null=True)
+    store_name = models.CharField(max_length=100, blank=True, null=True)
+
+    def filename(self) -> str:
+        return Path(self.file.name).name
+
+  
 
     def __str__(self):
         return f"{self.owner} - {self.source} - {self.file.name}"

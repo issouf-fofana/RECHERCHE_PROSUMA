@@ -1,0 +1,150 @@
+:root{
+  --sidebar-grad: linear-gradient(180deg,#0e4bf1 0%, #0b63d7 100%);
+  --card-bg: #ffffff;
+  --muted: #6b7280;
+  --ring: 0 8px 24px rgba(2,16,60,.08);
+  --ring-strong: 0 14px 32px rgba(2,16,60,.12);
+  --radius: 16px;
+}
+
+body{ background: #f6f8fb; }
+
+/* ——— Sidebar (si tu as une colonne latérale) ——— */
+.sidebar{
+  background: var(--sidebar-grad);
+  color:#fff;
+  min-height:100vh;
+}
+.sidebar a, .sidebar .nav-link{ color:#e8eefc; }
+.sidebar .nav-link.active{ background: rgba(255,255,255,.12); color:#fff; }
+
+/* ——— Header du dashboard ——— */
+.page-title{
+  display:flex; align-items:center; gap:.6rem;
+  font-weight:800; letter-spacing:.2px; color:#0b1b46;
+}
+.page-title .dot{
+  width:36px; height:36px; border-radius:999px;
+  background:#e9f0ff; display:flex; align-items:center; justify-content:center;
+}
+
+/* ——— Cartes métriques ——— */
+.metrics-grid{
+  display:grid; gap:14px;
+  grid-template-columns: repeat(12, 1fr);
+}
+.metric-card{
+  grid-column: span 3;
+  background: var(--card-bg);
+  border-radius: var(--radius);
+  box-shadow: var(--ring);
+  padding:18px 18px;
+  position:relative;
+  transition: transform .2s ease, box-shadow .2s ease;
+}
+.metric-card:hover{ transform: translateY(-2px); box-shadow: var(--ring-strong); }
+.metric-card .icon{
+  width:44px;height:44px;border-radius:12px;
+  display:flex;align-items:center;justify-content:center;
+  color:#fff; font-size:20px; margin-bottom:10px;
+}
+.icon.blue{ background: linear-gradient(135deg,#4285f4,#2563eb); }
+.icon.green{ background: linear-gradient(135deg,#16a34a,#22c55e); }
+.icon.orange{ background: linear-gradient(135deg,#f59e0b,#f97316); }
+.icon.pink{ background: linear-gradient(135deg,#db2777,#f43f5e); }
+.metric-card .label{ color:var(--muted); font-size:.9rem; margin-top:4px; }
+.metric-card .value{ font-weight:800; font-size:2rem; line-height:1.1; }
+
+/* ——— Filtres ——— */
+.filters{
+  background: var(--card-bg);
+  border-radius: var(--radius);
+  box-shadow: var(--ring);
+  padding:14px;
+}
+
+/* ——— Tableau moderne ——— */
+.table-wrap{
+  background: var(--card-bg);
+  border-radius: var(--radius);
+  box-shadow: var(--ring);
+  overflow: hidden;
+}
+.table-modern thead th{
+  background:#f3f6ff; color:#0b1b46; font-weight:700; border-bottom:0;
+}
+.table-modern tbody tr{ transition: background .15s ease; }
+.table-modern tbody tr:hover{ background:#f9fbff; }
+.table-modern td, .table-modern th{ vertical-align: middle; }
+
+/* ——— Badges de statut ——— */
+.badge-status{ font-weight:700; letter-spacing:.2px; }
+.badge-success{ background:#e8fff3; color:#0a7a3d; }
+.badge-failed{ background:#ffefef; color:#b42318; }
+.badge-running{ background:#eef5ff; color:#1e40af; }
+
+/* ——— Boutons petits propres ——— */
+.btn-soft{
+  border-radius: 12px; border:1px solid #e5e7eb; background:#fff; color:#111827;
+  padding:.35rem .6rem; font-weight:600;
+}
+.btn-soft:hover{ background:#f9fafb; }
+
+
+:root{
+  --sidebar-grad: linear-gradient(180deg,#0e4bf1 0%, #0b63d7 100%);
+  --card-bg:#fff; --muted:#6b7280;
+  --ring:0 8px 24px rgba(2,16,60,.08);
+  --ring-strong:0 14px 32px rgba(2,16,60,.12);
+  --radius:16px;
+}
+body{ background:#f6f8fb; }
+
+/* Sidebar */
+.sidebar{
+  background:var(--sidebar-grad);
+  color:#fff; min-height:100vh;
+}
+.sidebar .nav-link{
+  color:#e8eefc; border-radius:10px; padding:.55rem .8rem;
+}
+.sidebar .nav-link:hover{ background:rgba(255,255,255,.08); color:#fff; }
+.sidebar .nav-link.active{ background:rgba(255,255,255,.18); color:#fff; }
+
+/* Page title badge */
+.page-title{ display:flex; align-items:center; gap:.6rem; font-weight:800; color:#0b1b46; }
+.page-title .dot{ width:36px; height:36px; border-radius:999px; background:#e9f0ff; display:flex; align-items:center; justify-content:center; }
+
+/* “Soft” buttons */
+.btn-soft{
+  border-radius:12px; border:1px solid #e5e7eb; background:#fff; color:#111827;
+  padding:.35rem .6rem; font-weight:600;
+}
+.btn-soft:hover{ background:#f9fafb; }
+
+/* Cards / table wrappers */
+.filters, .table-wrap{
+  background:var(--card-bg); border-radius:var(--radius); box-shadow:var(--ring);
+}
+.table-modern thead th{ background:#f3f6ff; color:#0b1b46; font-weight:700; }
+
+/* Status badges */
+.badge-status{ font-weight:700; letter-spacing:.2px; border-radius:999px; }
+.badge-success{ background:#e8fff3; color:#0a7a3d; }
+.badge-failed{ background:#ffefef; color:#b42318; }
+.badge-running{ background:#eef5ff; color:#1e40af; }
+
+/* Activités récentes */
+.activity-list{ display:flex; flex-direction:column; gap:12px; max-height: 60vh; overflow:auto; }
+.activity-item{
+  background:#fff; border-radius:16px; box-shadow: var(--ring);
+  padding:14px; display:flex; gap:12px; align-items:flex-start;
+}
+.activity-icon{
+  width:40px;height:40px;border-radius:12px; background:#eef4ff;
+  display:flex; align-items:center; justify-content:center; color:#1d4ed8;
+}
+.btn-soft.active{
+  outline: 2px solid #1d4ed8;
+  background:#eef4ff;
+}

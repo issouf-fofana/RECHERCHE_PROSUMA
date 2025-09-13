@@ -2,93 +2,271 @@
 {% block title %}Mes comparatifs{% endblock %}
 {% block content %}
 
-<div class="row mb-3">
-  <div class="col">
-    <div class="alert alert-secondary d-flex gap-4 mb-0">
-      <div><strong>Total runs:</strong> {{ stats.total }}</div>
-      <div><strong>Succès:</strong> {{ stats.success }}</div>
-      <div><strong>Échecs:</strong> {{ stats.failed }}</div>
-      <div><strong>Lignes totales:</strong> {{ stats.rows }}</div>
-      <div><strong>Écarts cumulés:</strong> {{ stats.diffs }}</div>
+<h3 class="page-title mb-3">
+  <span class="dot"><i class="bi bi-columns-gap"></i></span>
+  Mes comparatifs
+</h3>
+
+<!-- Cartes métriques -->
+<div class="metrics-grid mb-3">
+  <div class="metric-card">
+    <div class="icon blue"><i class="bi bi-collection"></i></div>
+    <div class="value">{{ stats.total }}</div>
+    <div class="label">Runs totaux</div>
+  </div>
+  <div class="metric-card">
+    <div class="icon green"><i class="bi bi-check2-circle"></i></div>
+    <div class="value">{{ stats.success }}</div>
+    <div class="label">Succès</div>
+  </div>
+  <div class="metric-card">
+    <div class="icon pink"><i class="bi bi-x-circle"></i></div>
+    <div class="value">{{ stats.failed }}</div>
+    <div class="label">Échecs</div>
+  </div>
+  <div class="metric-card">
+    <div class="icon orange"><i class="bi bi-arrows-expand"></i></div>
+    <div class="value">{{ stats.diffs }}</div>
+    <div class="label">Écarts cumulés</div>
+  </div>
+</div>
+
+<!-- Filtres -->
+<div class="filters mb-3">
+  <form method="get" class="row g-2 align-items-end">
+    <div class="col-md-3">
+      <label class="form-label">Catégorie</label>
+      <select name="category" class="form-select">
+        <option value="">Toutes</option>
+        {% for c in categories %}
+          <option value="{{ c.id }}" {% if selected.category == c.id|stringformat:"s" %}selected{% endif %}>{{ c.name }}</option>
+        {% endfor %}
+      </select>
     </div>
+    <div class="col-md-3">
+      <label class="form-label">Configuration</label>
+      <select name="config" class="form-select">
+        <option value="">Toutes</option>
+        {% for c in configs %}
+          <option value="{{ c.id }}" {% if selected.config == c.id|stringformat:"s" %}selected{% endif %}>
+            {{ c.name }} — {{ c.category.name }}
+          </option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-md-3">
+      <label class="form-label">Statut</label>
+      <select name="status" class="form-select">
+        <option value="">Tous</option>
+        {% for s in status_choices %}
+          <option value="{{ s }}" {% if selected.status == s %}selected{% endif %}>{{ s }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-md-3">
+      <label class="form-label">Magasin</label>
+      <select name="store" class="form-select">
+        <option value="">Tous</option>
+        {% for s in stores %}
+          <option value="{{ s.code }}" {% if selected.store == s.code %}selected{% endif %}>
+            {% if s.code %}{{ s.code }}{% else %}-{% endif %}{% if s.name %} — {{ s.name }}{% endif %}
+          </option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <div class="col-12 d-flex gap-2 mt-1">
+      <button class="btn btn-primary">Filtrer</button>
+      <a href="{% url 'comparisons:runs_dashboard' %}" class="btn btn-soft">Réinitialiser</a>
+    </div>
+  </form>
+</div>
+
+<!-- Tableau -->
+<div class="table-wrap">
+  <div class="table-responsive">
+    <table class="table table-modern table-hover align-middle mb-0">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Date</th>
+          <th>Magasin</th>
+          <th>Catégorie</th>
+          <th>Configuration</th>
+          <th>Statut</th>
+          <th>Écarts</th>
+          <th>Lignes</th>
+          <th>Résultats</th>
+          <th>Actions</th>
+          <th>Exports</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in runs %}
+        <tr>
+          <td class="text-muted">#{{ r.id }}</td>
+          <td>{{ r.created_at|date:"Y-m-d H:i" }}</td>
+
+          <td>
+            {% if r.dataset_web1.store_code or r.dataset_web1.store_name %}
+              {% if r.dataset_web1.store_code %}{{ r.dataset_web1.store_code }}{% else %}-{% endif %}
+              {% if r.dataset_web1.store_name %} — {{ r.dataset_web1.store_name }}{% endif %}
+            {% elif r.dataset_desktop.store_code or r.dataset_desktop.store_name %}
+              {% if r.dataset_desktop.store_code %}{{ r.dataset_desktop.store_code }}{% else %}-{% endif %}
+              {% if r.dataset_desktop.store_name %} — {{ r.dataset_desktop.store_name }}{% endif %}
+            {% else %}
+              -
+            {% endif %}
+          </td>
+
+          <td>{{ r.config.category.name }}</td>
+          <td class="fw-semibold">{{ r.config.name }}</td>
+
+          <td>
+            {% if r.status == "success" %}
+              <span class="badge badge-status badge-success">success</span>
+            {% elif r.status == "failed" %}
+              <span class="badge badge-status badge-failed">failed</span>
+            {% else %}
+              <span class="badge badge-status badge-running">{{ r.status }}</span>
+            {% endif %}
+          </td>
+
+          <td><strong>{{ r.diff_rows }}</strong></td>
+          <td>{{ r.total_rows }}</td>
+
+          <td>
+            <a class="btn btn-soft btn-sm" href="{% url 'comparisons:results' r.id %}">
+              <i class="bi bi-eye"></i> Voir
+            </a>
+          </td>
+
+          <!-- Actions (modales) -->
+          <td class="text-nowrap">
+            <button type="button"
+                    class="btn btn-soft btn-sm js-edit-run"
+                    title="Modifier"
+                    data-run-id="{{ r.id }}"
+                    data-run-notes="{{ r.message|default_if_none:''|escape }}">
+              <i class="bi bi-pencil-square"></i>
+            </button>
+
+            <button type="button"
+                    class="btn btn-soft btn-sm text-danger js-del-run"
+                    title="Supprimer"
+                    data-run-id="{{ r.id }}">
+              <i class="bi bi-trash"></i>
+            </button>
+          </td>
+
+          <td class="text-nowrap">
+            {% if r.export_csv %}
+              <a class="btn btn-soft btn-sm" href="{{ r.export_csv }}"><i class="bi bi-filetype-csv"></i> CSV</a>
+            {% endif %}
+            {% if r.export_xlsx %}
+              <a class="btn btn-soft btn-sm" href="{{ r.export_xlsx }}"><i class="bi bi-filetype-xlsx"></i> XLSX</a>
+            {% endif %}
+          </td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="11" class="text-muted py-4 text-center">Aucun run pour l’instant.</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
   </div>
 </div>
 
-<form method="get" class="row g-2 mb-3">
-  <div class="col-md-3">
-    <select name="category" class="form-select">
-      <option value="">Catégorie (toutes)</option>
-      {% for c in categories %}
-        <option value="{{ c.id }}" {% if selected.category == c.id|stringformat:"s" %}selected{% endif %}>{{ c.name }}</option>
-      {% endfor %}
-    </select>
+<!-- ========= Modale EDIT ========= -->
+<div class="modal fade" id="editRunModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <form method="post" id="editRunForm">
+      {% csrf_token %}
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title"><i class="bi bi-pencil-square me-2"></i>Modifier le comparatif</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
+        </div>
+        <div class="modal-body">
+          <label class="form-label">Notes</label>
+          <!-- IMPORTANT : name="message" correspond à la vue run_edit -->
+          <textarea name="message" id="editMessage" class="form-control" rows="5"
+                    placeholder="Saisir vos notes…"></textarea>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-outline-secondary" type="button" data-bs-dismiss="modal">Annuler</button>
+          <button class="btn btn-primary" type="submit">Enregistrer</button>
+        </div>
+      </div>
+    </form>
   </div>
-  <div class="col-md-3">
-    <select name="config" class="form-select">
-      <option value="">Configuration (toutes)</option>
-      {% for c in configs %}
-        <option value="{{ c.id }}" {% if selected.config == c.id|stringformat:"s" %}selected{% endif %}>{{ c.name }} — {{ c.category.name }}</option>
-      {% endfor %}
-    </select>
-  </div>
-  <div class="col-md-3">
-    <select name="status" class="form-select">
-      <option value="">Statut (tous)</option>
-      {% for s in status_choices %}
-        <option value="{{ s }}" {% if selected.status == s %}selected{% endif %}>{{ s }}</option>
-      {% endfor %}
-    </select>
-  </div>
-  <div class="col-md-3 d-flex gap-2">
-    <button class="btn btn-primary flex-fill">Filtrer</button>
-    <a href="{% url 'comparisons:runs_dashboard' %}" class="btn btn-outline-secondary">Réinitialiser</a>
-  </div>
-</form>
-
-<div class="table-responsive">
-  <table class="table table-sm table-striped align-middle">
-    <thead>
-      <tr>
-        <th>#</th>
-        <th>Date</th>
-        <th>Catégorie</th>
-        <th>Configuration</th>
-        <th>Statut</th>
-        <th>Écarts</th>
-        <th>Lignes</th>
-        <th>Résultats</th>
-        <th>Exports</th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for r in runs %}
-      <tr>
-        <td>{{ r.id }}</td>
-        <td>{{ r.created_at|date:"Y-m-d H:i" }}</td>
-        <td>{{ r.config.category.name }}</td>
-        <td>{{ r.config.name }}</td>
-        <td>
-          {% if r.status == "success" %}
-            <span class="badge bg-success">success</span>
-          {% elif r.status == "failed" %}
-            <span class="badge bg-danger">failed</span>
-          {% else %}
-            <span class="badge bg-secondary">{{ r.status }}</span>
-          {% endif %}
-        </td>
-        <td><strong>{{ r.diff_rows }}</strong></td>
-        <td>{{ r.total_rows }}</td>
-        <td><a class="btn btn-outline-primary btn-sm" href="{% url 'comparisons:results' r.id %}">Voir</a></td>
-        <td>
-          {% if r.export_csv %}<a class="btn btn-outline-secondary btn-sm" href="{{ r.export_csv }}">CSV</a>{% endif %}
-          {% if r.export_xlsx %}<a class="btn btn-outline-secondary btn-sm" href="{{ r.export_xlsx }}">XLSX</a>{% endif %}
-        </td>
-      </tr>
-      {% empty %}
-      <tr><td colspan="9" class="text-muted">Aucun run pour l’instant.</td></tr>
-      {% endfor %}
-    </tbody>
-  </table>
 </div>
+
+<!-- ========= Modale DELETE ========= -->
+<div class="modal fade" id="deleteRunModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <form method="post" id="deleteRunForm">
+      {% csrf_token %}
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title text-danger"><i class="bi bi-trash me-2"></i>Supprimer</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
+        </div>
+        <div class="modal-body">
+          <p id="deleteRunText" class="mb-0">Supprimer ce comparatif ?</p>
+          <small class="text-muted">Cette action est irréversible.</small>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-outline-secondary" type="button" data-bs-dismiss="modal">Annuler</button>
+          <button class="btn btn-danger" type="submit">Supprimer</button>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- JS pour alimenter les modales -->
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  if (!window.bootstrap) {
+    console.error('Bootstrap JS non chargé.');
+    return;
+  }
+
+  const editModalEl = document.getElementById('editRunModal');
+  const delModalEl  = document.getElementById('deleteRunModal');
+  const editModal = new bootstrap.Modal(editModalEl);
+  const delModal  = new bootstrap.Modal(delModalEl);
+
+  // EDIT
+  document.querySelectorAll('.js-edit-run').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const id    = btn.dataset.runId;
+      const notes = btn.dataset.runNotes || '';
+      document.getElementById('editMessage').value = notes;
+
+      const form = document.getElementById('editRunForm');
+      form.action = "{% url 'comparisons:run_edit' 0 %}".replace('/0/', `/${id}/`);
+      editModal.show();
+    });
+  });
+
+  // DELETE
+  document.querySelectorAll('.js-del-run').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const id = btn.dataset.runId;
+      document.getElementById('deleteRunText').innerText = `Supprimer le comparatif #${id} ?`;
+
+      const form = document.getElementById('deleteRunForm');
+      form.action = "{% url 'comparisons:run_delete' 0 %}".replace('/0/', `/${id}/`);
+      delModal.show();
+    });
+  });
+});
+</script>
+{% endblock %}
+
 
 {% endblock %}

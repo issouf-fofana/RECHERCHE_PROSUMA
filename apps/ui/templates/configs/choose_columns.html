@@ -1,15 +1,236 @@
 {% extends "base.html" %}
 {% load crispy_forms_tags %}
-{% block title %}Sélection colonnes{% endblock %}
+{% block title %}Configurer la comparaison{% endblock %}
+
 {% block content %}
-<div class="card shadow-sm">
-  <div class="card-body">
-    <h5 class="card-title">Étape 2 — Choisir colonnes et clés & nommer la configuration</h5>
-    <form method="post">
-      {% csrf_token %}
-      {{ form|crispy }}
-      <button class="btn btn-primary mt-2">Lancer comparaison</button>
-    </form>
+<style>
+  /* Look & feel des blocs */
+  .step-card{background:#fff;border:1px solid #eef0f4;border-radius:16px;box-shadow:0 4px 16px rgba(28,38,60,.06);margin-bottom:14px}
+  .step-head{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border-bottom:1px solid #eef0f4}
+  .step-title{display:flex;align-items:center;gap:10px;font-weight:700;margin:0}
+  .step-title .idx{display:inline-grid;place-items:center;width:28px;height:28px;border-radius:10px;background:#eef5ff;color:#2563eb;font-size:.9rem}
+  .step-actions{display:flex;align-items:center;gap:6px}
+  .btn-soft{border:1px solid #e7e9ee;background:#fbfcfe;color:#334155}
+  .btn-soft:hover{background:#f2f5fb}
+  .counter-badge{background:#f1f5f9;border-radius:10px;padding:2px 8px;font-size:.8rem;color:#475569}
+  .step-body{padding:14px 16px}
+  .scroll-pane{max-height:40vh;overflow:auto;border:1px dashed #e8ecf3;border-radius:12px;padding:10px}
+  .field-label{font-weight:600;margin-bottom:6px}
+  .sticky-submit{position:sticky;bottom:0;background:linear-gradient(180deg,rgba(255,255,255,0) 0, #fff 35%);padding:14px 0 4px}
+</style>
+
+<form method="post" id="cfg-form" novalidate>
+  {% csrf_token %}
+  {{ form.non_field_errors }}
+
+  <!-- 1) Name -->
+  <div class="step-card">
+    <div class="step-head">
+      <h6 class="step-title">
+        <span class="idx">1</span> Name*
+      </h6>
+      <div class="step-actions">
+        <button class="btn btn-soft btn-sm collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#blk-name" aria-expanded="false">
+          <i class="bi bi-chevron-down"></i>
+        </button>
+      </div>
+    </div>
+    <div id="blk-name" class="collapse step-body">
+      <div class="mb-2">
+        <label class="field-label" for="{{ form.name.id_for_label }}">Nom de la configuration</label>
+        {{ form.name|as_crispy_field }}
+      </div>
+    </div>
   </div>
-</div>
+
+  <!-- 2) Colonnes Web1 -->
+  <div class="step-card">
+    <div class="step-head">
+      <h6 class="step-title">
+        <span class="idx">2</span> Colonnes à garder (Web1)*
+      </h6>
+      <div class="step-actions">
+        <span class="counter-badge" data-counter="web1">0 sélection</span>
+        <button class="btn btn-soft btn-sm" type="button" data-select="all" data-target="web1">Tout cocher</button>
+        <button class="btn btn-soft btn-sm" type="button" data-select="none" data-target="web1">Tout décocher</button>
+        <button class="btn btn-soft btn-sm collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#blk-web1" aria-expanded="false">
+          <i class="bi bi-chevron-down"></i>
+        </button>
+      </div>
+    </div>
+    <div id="blk-web1" class="collapse step-body">
+      <div class="scroll-pane" data-pane="web1">
+        {{ form.columns_web1|as_crispy_field }}
+      </div>
+    </div>
+  </div>
+
+  <!-- 3) Colonnes Desktop -->
+  <div class="step-card">
+    <div class="step-head">
+      <h6 class="step-title">
+        <span class="idx">3</span> Colonnes à garder (Desktop)*
+      </h6>
+      <div class="step-actions">
+        <span class="counter-badge" data-counter="desk">0 sélection</span>
+        <button class="btn btn-soft btn-sm" type="button" data-select="all" data-target="desk">Tout cocher</button>
+        <button class="btn btn-soft btn-sm" type="button" data-select="none" data-target="desk">Tout décocher</button>
+        <button class="btn btn-soft btn-sm collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#blk-desk" aria-expanded="false">
+          <i class="bi bi-chevron-down"></i>
+        </button>
+      </div>
+    </div>
+    <div id="blk-desk" class="collapse step-body">
+      <div class="scroll-pane" data-pane="desk">
+        {{ form.columns_desktop|as_crispy_field }}
+      </div>
+    </div>
+  </div>
+
+  <!-- 4) Clés Web1 -->
+  <div class="step-card">
+    <div class="step-head">
+      <h6 class="step-title">
+        <span class="idx">4</span> Clés (Web1) — ordre = priorité*
+      </h6>
+      <div class="step-actions">
+        <span class="counter-badge" data-counter="keyw">0 clé</span>
+        <button class="btn btn-soft btn-sm collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#blk-keyw" aria-expanded="false">
+          <i class="bi bi-chevron-down"></i>
+        </button>
+      </div>
+    </div>
+    <div id="blk-keyw" class="collapse step-body">
+      <p class="text-muted small mb-2">
+        Sélectionne 1+ colonnes servant de clé (la première a la plus haute priorité).
+      </p>
+      <div class="scroll-pane" data-pane="keyw">
+        {{ form.join_key_web1|as_crispy_field }}
+      </div>
+    </div>
+  </div>
+
+  <!-- 5) Clés Desktop -->
+  <div class="step-card">
+    <div class="step-head">
+      <h6 class="step-title">
+        <span class="idx">5</span> Clés (Desktop) — même nombre et ordre correspondant
+      </h6>
+      <div class="step-actions">
+        <span class="counter-badge" data-counter="keyd">0 clé</span>
+        <button class="btn btn-soft btn-sm collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#blk-keyd" aria-expanded="false">
+          <i class="bi bi-chevron-down"></i>
+        </button>
+      </div>
+    </div>
+    <div id="blk-keyd" class="collapse step-body">
+      <p class="text-muted small mb-2">
+        Choisis le même nombre de colonnes et le même ordre que pour Web1.
+      </p>
+      <div class="scroll-pane" data-pane="keyd">
+        {{ form.join_key_desktop|as_crispy_field }}
+      </div>
+    </div>
+  </div>
+
+  <!-- 6) Type de jointure -->
+  <div class="step-card">
+    <div class="step-head">
+      <h6 class="step-title">
+        <span class="idx">6</span> Type de jointure*
+      </h6>
+      <div class="step-actions">
+        <button class="btn btn-soft btn-sm collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#blk-join" aria-expanded="false">
+          <i class="bi bi-chevron-down"></i>
+        </button>
+      </div>
+    </div>
+    <div id="blk-join" class="collapse step-body">
+      <div class="mb-2">
+        {{ form.join_type|as_crispy_field }}
+      </div>
+      <ul class="small text-muted mb-0">
+        <li><strong>Left</strong> : lignes Web1 sans correspondance (écarts côté Web1)</li>
+        <li><strong>Right</strong> : lignes Desktop sans correspondance</li>
+        <li><strong>Outer</strong> : écarts des deux côtés</li>
+        <li><strong>Inner</strong> : seulement les correspondances (souvent 0 écart)</li>
+      </ul>
+
+      <div class="sticky-submit mt-3">
+        <button class="btn btn-primary btn-lg">
+          <i class="bi bi-rocket-takeoff me-1"></i> Lancer la comparaison
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Actions globales -->
+  <div class="d-flex gap-2 mt-2">
+    <button type="button" class="btn btn-soft btn-sm" id="expand-all">
+      <i class="bi bi-arrows-expand me-1"></i> Tout déplier
+    </button>
+    <button type="button" class="btn btn-soft btn-sm" id="collapse-all">
+      <i class="bi bi-arrows-collapse me-1"></i> Tout replier
+    </button>
+  </div>
+</form>
+
+<script>
+  // ——— Helpers sélection / compteur ———
+  function updateCounters(){
+    const counters = {
+      web1: document.querySelectorAll('[data-pane="web1"] input[type="checkbox"]:checked').length,
+      desk: document.querySelectorAll('[data-pane="desk"] input[type="checkbox"]:checked').length,
+      keyw: document.querySelectorAll('[data-pane="keyw"] input[type="checkbox"]:checked').length,
+      keyd: document.querySelectorAll('[data-pane="keyd"] input[type="checkbox"]:checked').length,
+    };
+    Object.entries(counters).forEach(([k,v])=>{
+      const b = document.querySelector(`[data-counter="${k}"]`);
+      if (b) b.innerText = v + (k.startsWith('key') ? ' clé' + (v>1?'s':'') : ' sélection' + (v>1?'s':''));
+    });
+  }
+  document.addEventListener('change', (e)=>{
+    if (e.target.matches('.scroll-pane input[type="checkbox"]')) updateCounters();
+  });
+  updateCounters();
+
+  // Tout cocher / décocher par bloc
+  document.querySelectorAll('[data-select]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const target = btn.getAttribute('data-target');
+      const pane = document.querySelector(`[data-pane="${target}"]`);
+      if (!pane) return;
+      const checks = pane.querySelectorAll('input[type="checkbox"]');
+      checks.forEach(ch => ch.checked = (btn.dataset.select === 'all'));
+      updateCounters();
+    });
+  });
+
+  // Accordeon global
+  const acc = document.getElementById('cfg-form');
+  document.getElementById('expand-all')?.addEventListener('click', ()=>{
+    acc.querySelectorAll('.collapse').forEach(c=>{
+      if (!c.classList.contains('show')) {
+        const btn = acc.querySelector(`[data-bs-target="#${c.id}"]`);
+        btn?.click();
+      }
+    });
+  });
+  document.getElementById('collapse-all')?.addEventListener('click', ()=>{
+    acc.querySelectorAll('.collapse.show').forEach(c=>{
+      const btn = acc.querySelector(`[data-bs-target="#${c.id}"]`);
+      if (btn && !btn.classList.contains('collapsed')) btn.click();
+    });
+  });
+
+  // Ouvrir la 1ʳᵉ section en erreur si besoin
+  const firstInvalid = document.querySelector('.step-body .is-invalid, .step-body .invalid-feedback');
+  if (firstInvalid) {
+    const sec = firstInvalid.closest('.collapse');
+    if (sec && !sec.classList.contains('show')) {
+      const btn = document.querySelector(`[data-bs-target="#${sec.id}"]`);
+      btn?.click();
+    }
+  }
+</script>
 {% endblock %}

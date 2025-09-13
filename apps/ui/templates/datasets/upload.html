@@ -1,15 +1,153 @@
 {% extends "base.html" %}
-{% load crispy_forms_tags %}
-{% block title %}Charger CSV{% endblock %}
+{% load ui_extras %}
+{% block title %}Étape 1 — Charger les deux CSV{% endblock %}
 {% block content %}
+
+<style>
+  .stepbar{display:flex;gap:.5rem;align-items:center;margin-bottom:.75rem}
+  .step-pill{font-weight:600;border-radius:999px;padding:.25rem .6rem;font-size:.8rem}
+  .step-on{background:#0d6efd1a;color:#0d6efd;border:1px solid #0d6efd33}
+  .step-off{background:#6c757d14;color:#6c757d;border:1px solid #6c757d2e}
+
+  .section-card{border:1px solid #e9ecef;border-radius:1rem;padding:1rem 1.25rem;background:#fff;
+                box-shadow:0 6px 16px rgba(33,37,41,.04)}
+  .section-title{font-weight:700;margin:0 0 .5rem 0;display:flex;align-items:center;gap:.5rem}
+  .muted{color:#6c757d}
+
+  .fancy-input,.form-select{border-radius:.8rem;border:1px solid #dbe1e8;padding:.6rem .9rem}
+  .fancy-input:focus,.form-select:focus{border-color:#0d6efd66;box-shadow:0 0 0 .25rem #0d6efd22;outline:0}
+
+  .upload-card{border:1px dashed #cfd6de;border-radius:1rem;background:#f8fafc;padding:1.25rem}
+  .dropzone{border:2px dashed #cfd6de;border-radius:.75rem;background:#fff;
+            padding:1rem;text-align:center;transition:.2s ease all}
+  .dropzone:hover{border-color:#0d6efd33;background:#f8fbff}
+  .dropzone i{font-size:1.6rem}
+  .hint{font-size:.85rem;color:#6c757d}
+</style>
+
 <div class="card shadow-sm">
   <div class="card-body">
-    <h5 class="card-title">Étape 1 — Charger les deux CSV</h5>
-    <form method="post" enctype="multipart/form-data">
+    <div class="d-flex align-items-start justify-content-between flex-wrap gap-2 mb-2">
+      <div>
+        <h4 class="mb-1">Étape 1 — Charger les deux CSV</h4>
+        <div class="muted">Choisis (ou crée) une catégorie, puis sélectionne les deux fichiers à comparer.</div>
+      </div>
+      <div class="stepbar">
+        <span class="step-pill step-on">1. Fichiers</span>
+        <span class="step-pill step-off">2. Colonnes & Clés</span>
+        <span class="step-pill step-off">3. Résultats</span>
+      </div>
+    </div>
+
+    <form method="post" enctype="multipart/form-data" class="vstack gap-3" id="uploadForm">
       {% csrf_token %}
-      {{ form|crispy }}
-      <button class="btn btn-primary">Continuer</button>
+
+      <!-- Catégorie -->
+      <div class="section-card">
+        <div class="section-title"><i class="bi bi-diagram-3"></i>Catégorie</div>
+        <div class="row g-3">
+          <div class="col-lg-6">
+            <label class="form-label" for="id_category_choice">Catégorie*</label>
+            {{ form.category_choice|add_class:"form-select" }}
+            <div class="hint mt-1">Choisis <strong>BR</strong>, <strong>Commande</strong>, <strong>Facture</strong>…
+              ou « Autre » pour saisir une catégorie personnalisée.</div>
+          </div>
+
+          <div class="col-lg-6 {% if not form.category_other.value %}d-none{% endif %}" id="otherCategoryCol">
+            <label class="form-label" for="id_category_other">Nouvelle catégorie*</label>
+            {{ form.category_other|add_class:"fancy-input" }}
+            <div class="form-text">Exemples : Avoirs, Inventaire, IC…</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Fichiers -->
+      <div class="row g-3">
+        <div class="col-lg-6">
+          <div class="section-card upload-card h-100">
+            <div class="section-title"><i class="bi bi-cloud-arrow-up"></i>CSV — Source <strong>Web1</strong>*</div>
+            <div class="dropzone">
+              <div class="mb-2"><i class="bi bi-filetype-csv"></i></div>
+              <div class="muted mb-2">Glisse-dépose ton fichier ici ou clique pour le choisir</div>
+              {{ form.csv_web1|add_class:"form-control" }}
+            </div>
+            <div class="hint mt-2">Le séparateur et l’encodage seront détectés automatiquement.</div>
+          </div>
+        </div>
+
+        <div class="col-lg-6">
+          <div class="section-card upload-card h-100">
+            <div class="section-title"><i class="bi bi-cloud-arrow-up"></i>CSV — Source <strong>Desktop</strong>*</div>
+            <div class="dropzone">
+              <div class="mb-2"><i class="bi bi-filetype-csv"></i></div>
+              <div class="muted mb-2">Glisse-dépose ton fichier ici ou clique pour le choisir</div>
+              {{ form.csv_desktop|add_class:"form-control" }}
+            </div>
+            <div class="hint mt-2">Assure-toi qu’il s’agit de l’extraction correspondante à comparer.</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="d-flex align-items-center gap-2 mt-1">
+        <button class="btn btn-primary px-4" id="submitBtn" disabled>
+          Continuer <i class="bi bi-arrow-right-short"></i>
+        </button>
+        <a href="{% url 'ui:home' %}" class="btn btn-soft">Annuler</a>
+      </div>
+
+      <div class="hint mt-2">
+        Astuce : renomme tes fichiers comme
+        <code>230xsupplierorder_2025-09-11T14_30.csv</code> pour détecter automatiquement le <em>magasin</em>.
+      </div>
     </form>
   </div>
 </div>
+
+<script>
+(function() {
+  function byId(id){return document.getElementById(id)}
+
+  const sel = byId('id_category_choice');
+  const otherCol = byId('otherCategoryCol');
+  const otherInput = byId('id_category_other');
+  const file1 = byId('{{ form.csv_web1.id_for_label }}');
+  const file2 = byId('{{ form.csv_desktop.id_for_label }}');
+  const submitBtn = byId('submitBtn');
+
+  // Cherche dynamiquement l'option "Autre…" (value == "__other__" ou libellé contenant "autre")
+  let OTHER_VALUE = '__other__';
+  if (sel) {
+    const opt = Array.from(sel.options).find(o => o.value === '__other__' || /autre/i.test(o.textContent || ''));
+    if (opt) OTHER_VALUE = opt.value;
+  }
+
+  function toggleOther() {
+    if (!sel) return;
+    const needOther = sel.value === OTHER_VALUE;
+    if (needOther) {
+      otherCol.classList.remove('d-none');
+      if (otherInput){ otherInput.required = true; }
+    } else {
+      otherCol.classList.add('d-none');
+      if (otherInput){ otherInput.required = false; }
+    }
+    validate();
+  }
+
+  function validate() {
+    const catOK = (sel && sel.value && (sel.value !== OTHER_VALUE || (otherInput && otherInput.value.trim().length > 0)));
+    const filesOK = file1 && file1.files.length > 0 && file2 && file2.files.length > 0;
+    submitBtn.disabled = !(catOK && filesOK);
+  }
+
+  if (sel) sel.addEventListener('change', toggleOther);
+  if (otherInput) otherInput.addEventListener('input', validate);
+  if (file1) file1.addEventListener('change', validate);
+  if (file2) file2.addEventListener('change', validate);
+
+  // Init
+  toggleOther();
+  validate();
+})();
+</script>
 {% endblock %}

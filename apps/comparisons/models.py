@@ -15,7 +15,11 @@ class CompareRun(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)  # si pas déjà présent
     export_csv = models.CharField(max_length=255, blank=True)
     export_xlsx = models.CharField(max_length=255, blank=True)
-
+    title = models.CharField("Titre", max_length=255, blank=True, null=True, default="")
+    notes = models.TextField("Notes", blank=True, null=True, default="")
+    
+    class Meta:
+        ordering = ["-created_at", "-id"]
 class CompareResult(models.Model):
     run = models.ForeignKey(CompareRun, on_delete=models.CASCADE)
     payload = models.JSONField()  # liste de lignes en écart

@@ -1,36 +1,125 @@
 {% extends "base.html" %}
-{% load ui_extras %}  {# 👈 AJOUTER CECI #}
+{% load ui_extras %}
 {% block title %}Résultats{% endblock %}
+
 {% block content %}
-<div class="card shadow-sm">
-  <div class="card-body">
-    <h5 class="card-title">Étape 3 — Résultats</h5>
-    {% if has_diff %}
-      <p class="text-danger fw-semibold">Écarts : {{ run.diff_rows }}</p>
-      <div class="table-responsive">
-        <table class="table table-sm table-striped">
-          <thead>
-            <tr>{% for c in columns %}<th>{{ c }}</th>{% endfor %}</tr>
-          </thead>
-          <tbody>
-            {% for row in rows %}
-              <tr>
-                {% for c in columns %}<td>{{ row|get_item:c }}</td>{% endfor %}
-              </tr>
-            {% endfor %}
-          </tbody>
-        </table>
-      </div>
-      {% if exports.csv or exports.xlsx %}
-        <div class="mt-2">
-          {% if exports.csv %}<a class="btn btn-outline-secondary btn-sm" href="{{ exports.csv }}">Télécharger CSV</a>{% endif %}
-          {% if exports.xlsx %}<a class="btn btn-outline-secondary btn-sm" href="{{ exports.xlsx }}">Télécharger XLSX</a>{% endif %}
-        </div>
-      {% endif %}
-    {% else %}
-      <div class="alert alert-success">Aucun écart détecté 🎉</div>
+
+<style>
+  .results-toolbar{display:flex;align-items:center;justify-content:space-between;gap:12px}
+  .table-wrap{border:1px solid #e7ebf2;border-radius:12px;overflow:hidden;box-shadow:0 6px 18px rgba(20,35,70,.06)}
+  .table-scroll{max-height:70vh;overflow:auto}
+  .table-modern thead th{position:sticky;top:0;background:#0b2a55;color:#fff;z-index:2}
+  .table-modern tbody td,.table-modern thead th{white-space:nowrap}
+  .merge-left_only{background:linear-gradient(90deg, rgba(255,238,240,.6), transparent)}
+  .merge-right_only{background:linear-gradient(90deg, rgba(234,246,255,.6), transparent)}
+  .badge-merge{font-weight:600;border-radius:10px}
+  .badge-merge-left{background:#ffe3e7;color:#a10022}
+  .badge-merge-right{background:#e4f1ff;color:#0b55a1}
+  .badge-merge-both{background:#eef7ee;color:#0a6b34}
+  .empty-state{padding:28px;text-align:center;color:#77839a}
+</style>
+
+<h3 class="page-title mb-3">
+  <span class="dot"><i class="bi bi-activity"></i></span>
+  Étape 3 — Résultats
+</h3>
+
+{% if store_code or store_name %}
+  <div class="alert alert-info d-flex align-items-center gap-2">
+    <i class="bi bi-shop"></i>
+    <div>
+      <strong>Magasin :</strong>
+      {% if store_code %}{{ store_code }}{% endif %}
+      {% if store_name %} — {{ store_name }}{% endif %}
+    </div>
+  </div>
+{% endif %}
+
+<div class="results-toolbar mb-3">
+  {% if has_diff %}
+    <div class="badge badge-status badge-failed fs-6 px-3 py-2">
+      Écarts : {{ run.diff_rows }}
+    </div>
+  {% else %}
+    <div class="badge badge-status badge-success fs-6 px-3 py-2">
+      Aucun écart détecté
+    </div>
+  {% endif %}
+
+  <div class="d-flex flex-wrap gap-2">
+    {% if run.config.category.name|lower == "commande" %}
+      <a class="btn btn-soft btn-sm" href="{% url 'comparisons:summary_orders' run.id %}">
+        <i class="bi bi-bar-chart-steps"></i> Synthèse commandes
+      </a>
     {% endif %}
-    <a class="btn btn-outline-secondary mt-3" href="{% url 'datasets:upload' %}">Recommencer</a>
+    {% if exports.csv %}
+      <a class="btn btn-soft btn-sm" href="{{ exports.csv }}"><i class="bi bi-filetype-csv"></i> CSV</a>
+    {% endif %}
+    {% if exports.xlsx %}
+      <a class="btn btn-soft btn-sm" href="{{ exports.xlsx }}"><i class="bi bi-filetype-xlsx"></i> XLSX</a>
+    {% endif %}
+    <a class="btn btn-primary btn-sm" href="{% url 'datasets:upload' %}">
+      <i class="bi bi-arrow-repeat"></i> Recommencer
+    </a>
   </div>
 </div>
+
+<!-- Légende _merge -->
+<div class="mb-3 d-flex flex-wrap gap-2">
+  <span class="badge badge-merge badge-merge-left">
+    <i class="bi bi-box-arrow-right"></i> Présent Web1 seulement
+  </span>
+  <span class="badge badge-merge badge-merge-right">
+    <i class="bi bi-box-arrow-in-left"></i> Présent Desktop seulement
+  </span>
+  <span class="badge badge-merge badge-merge-both">
+    <i class="bi bi-link-45deg"></i> Apparié (valeurs potentiellement diff.)
+  </span>
+</div>
+
+<div class="table-wrap">
+  {% if rows %}
+    <div class="table-scroll">
+      <table class="table table-modern align-middle mb-0">
+        <thead>
+          <tr>
+            {% for c in columns %}
+              <th class="text-nowrap">{{ c }}</th>
+            {% endfor %}
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in rows %}
+            {% with m=row|get_item:"_merge" %}
+            <tr class="merge-{{ m|default:'both' }}">
+              {% for c in columns %}
+                {% with val=row|get_item:c %}
+                  {% if c == "_merge" %}
+                    <td class="text-nowrap">
+                      {% if val == "left_only" %}
+                        <span class="badge badge-merge badge-merge-left">left_only</span>
+                      {% elif val == "right_only" %}
+                        <span class="badge badge-merge badge-merge-right">right_only</span>
+                      {% else %}
+                        <span class="badge badge-merge badge-merge-both">both</span>
+                      {% endif %}
+                    </td>
+                  {% else %}
+                    <td class="text-truncate" style="max-width:320px" title="{{ val|default:'' }}">{{ val }}</td>
+                  {% endif %}
+                {% endwith %}
+              {% endfor %}
+            </tr>
+            {% endwith %}
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    <div class="empty-state">
+      <i class="bi bi-table"></i> Aucune ligne à afficher pour ce run.
+    </div>
+  {% endif %}
+</div>
+
 {% endblock %}
