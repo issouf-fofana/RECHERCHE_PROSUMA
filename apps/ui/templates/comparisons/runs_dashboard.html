@@ -1,0 +1,94 @@
+{% extends "base.html" %}
+{% block title %}Mes comparatifs{% endblock %}
+{% block content %}
+
+<div class="row mb-3">
+  <div class="col">
+    <div class="alert alert-secondary d-flex gap-4 mb-0">
+      <div><strong>Total runs:</strong> {{ stats.total }}</div>
+      <div><strong>Succès:</strong> {{ stats.success }}</div>
+      <div><strong>Échecs:</strong> {{ stats.failed }}</div>
+      <div><strong>Lignes totales:</strong> {{ stats.rows }}</div>
+      <div><strong>Écarts cumulés:</strong> {{ stats.diffs }}</div>
+    </div>
+  </div>
+</div>
+
+<form method="get" class="row g-2 mb-3">
+  <div class="col-md-3">
+    <select name="category" class="form-select">
+      <option value="">Catégorie (toutes)</option>
+      {% for c in categories %}
+        <option value="{{ c.id }}" {% if selected.category == c.id|stringformat:"s" %}selected{% endif %}>{{ c.name }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div class="col-md-3">
+    <select name="config" class="form-select">
+      <option value="">Configuration (toutes)</option>
+      {% for c in configs %}
+        <option value="{{ c.id }}" {% if selected.config == c.id|stringformat:"s" %}selected{% endif %}>{{ c.name }} — {{ c.category.name }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div class="col-md-3">
+    <select name="status" class="form-select">
+      <option value="">Statut (tous)</option>
+      {% for s in status_choices %}
+        <option value="{{ s }}" {% if selected.status == s %}selected{% endif %}>{{ s }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div class="col-md-3 d-flex gap-2">
+    <button class="btn btn-primary flex-fill">Filtrer</button>
+    <a href="{% url 'comparisons:runs_dashboard' %}" class="btn btn-outline-secondary">Réinitialiser</a>
+  </div>
+</form>
+
+<div class="table-responsive">
+  <table class="table table-sm table-striped align-middle">
+    <thead>
+      <tr>
+        <th>#</th>
+        <th>Date</th>
+        <th>Catégorie</th>
+        <th>Configuration</th>
+        <th>Statut</th>
+        <th>Écarts</th>
+        <th>Lignes</th>
+        <th>Résultats</th>
+        <th>Exports</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for r in runs %}
+      <tr>
+        <td>{{ r.id }}</td>
+        <td>{{ r.created_at|date:"Y-m-d H:i" }}</td>
+        <td>{{ r.config.category.name }}</td>
+        <td>{{ r.config.name }}</td>
+        <td>
+          {% if r.status == "success" %}
+            <span class="badge bg-success">success</span>
+          {% elif r.status == "failed" %}
+            <span class="badge bg-danger">failed</span>
+          {% else %}
+            <span class="badge bg-secondary">{{ r.status }}</span>
+          {% endif %}
+        </td>
+        <td><strong>{{ r.diff_rows }}</strong></td>
+        <td>{{ r.total_rows }}</td>
+        <td><a class="btn btn-outline-primary btn-sm" href="{% url 'comparisons:results' r.id %}">Voir</a></td>
+        <td>
+          {% if r.export_csv %}<a class="btn btn-outline-secondary btn-sm" href="{{ r.export_csv }}">CSV</a>{% endif %}
+          {% if r.export_xlsx %}<a class="btn btn-outline-secondary btn-sm" href="{{ r.export_xlsx }}">XLSX</a>{% endif %}
+        </td>
+      </tr>
+      {% empty %}
+      <tr><td colspan="9" class="text-muted">Aucun run pour l’instant.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+{% endblock %}

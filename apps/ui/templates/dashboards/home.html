@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% block title %}Accueil{% endblock %}
+{% block content %}
+<div class="card shadow-sm">
+  <div class="card-body">
+    <h5 class="card-title">Bienvenue</h5>
+    <p>Commence par <a href="{% url 'datasets:upload' %}">charger deux CSV</a>, puis choisis tes colonnes, clés et lance la comparaison.</p>
+  </div>
+</div>
+{% endblock %}

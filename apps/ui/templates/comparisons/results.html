@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% load ui_extras %}  {# 👈 AJOUTER CECI #}
+{% block title %}Résultats{% endblock %}
+{% block content %}
+<div class="card shadow-sm">
+  <div class="card-body">
+    <h5 class="card-title">Étape 3 — Résultats</h5>
+    {% if has_diff %}
+      <p class="text-danger fw-semibold">Écarts : {{ run.diff_rows }}</p>
+      <div class="table-responsive">
+        <table class="table table-sm table-striped">
+          <thead>
+            <tr>{% for c in columns %}<th>{{ c }}</th>{% endfor %}</tr>
+          </thead>
+          <tbody>
+            {% for row in rows %}
+              <tr>
+                {% for c in columns %}<td>{{ row|get_item:c }}</td>{% endfor %}
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% if exports.csv or exports.xlsx %}
+        <div class="mt-2">
+          {% if exports.csv %}<a class="btn btn-outline-secondary btn-sm" href="{{ exports.csv }}">Télécharger CSV</a>{% endif %}
+          {% if exports.xlsx %}<a class="btn btn-outline-secondary btn-sm" href="{{ exports.xlsx }}">Télécharger XLSX</a>{% endif %}
+        </div>
+      {% endif %}
+    {% else %}
+      <div class="alert alert-success">Aucun écart détecté 🎉</div>
+    {% endif %}
+    <a class="btn btn-outline-secondary mt-3" href="{% url 'datasets:upload' %}">Recommencer</a>
+  </div>
+</div>
+{% endblock %}
