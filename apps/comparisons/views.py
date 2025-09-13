@@ -171,42 +171,58 @@ from django.db.models import Sum, Q
 from django.contrib import messages
 # ... autres imports
 
+from django.contrib.auth import get_user_model
+User = get_user_model()
+
+# apps/comparisons/views.py
+from django.db.models import Sum, Q
+from django.contrib import messages
+from django.shortcuts import render
+
 @login_required
 def runs_dashboard(request):
-    qs = (CompareRun.objects
-          .filter(config__owner=request.user)
-          .select_related("config", "config__category", "dataset_web1", "dataset_desktop")
-          .order_by("-created_at", "-id"))
+    qs = (
+        CompareRun.objects
+        .filter(config__owner=request.user)
+        .select_related("config", "config__category", "dataset_web1", "dataset_desktop")
+        .order_by("-created_at", "-id")
+    )
 
-    # Filtres
+    # --- Filtres ---
     cat_param = request.GET.get("category")
     cfg_id    = request.GET.get("config")
     status    = request.GET.get("status")
-    store     = (request.GET.get("store") or "").strip()  # code magasin
+    store     = (request.GET.get("store") or "").strip()  # code magasin (ex "230")
 
-    # Filtre catégorie (id ou nom)
+    # Catégorie (id ou nom)
     if cat_param:
         if str(cat_param).isdigit():
             qs = qs.filter(config__category_id=cat_param)
             selected_category = str(cat_param)
         else:
-            qs = qs.filter(config__category__name__iexact=cat_param)
             from apps.catalogs.models import ConfigCategory
+            qs = qs.filter(config__category__name__iexact=cat_param)
             sel_id = ConfigCategory.objects.filter(name__iexact=cat_param).values_list("id", flat=True).first()
             selected_category = str(sel_id or "")
     else:
         selected_category = ""
 
+    # Config
     if cfg_id:
         qs = qs.filter(config_id=cfg_id)
+
+    # Statut
     if status:
         qs = qs.filter(status=status)
 
-    # ✅ Filtre magasin : Web1 OU Desktop
+    # Magasin (code) sur Web1 OU Desktop
     if store:
-        qs = qs.filter(Q(dataset_web1__store_code=store) | Q(dataset_desktop__store_code=store))
+        qs = qs.filter(
+            Q(dataset_web1__store_code=store) |
+            Q(dataset_desktop__store_code=store)
+        )
 
-    # Stats
+    # --- Stats ---
     stats = {
         "total":   qs.count(),
         "success": qs.filter(status="success").count(),
@@ -215,33 +231,36 @@ def runs_dashboard(request):
         "diffs":   qs.aggregate(total_diffs=Sum("diff_rows"))["total_diffs"] or 0,
     }
 
-    # Listes pour les filtres
+    # --- Listes pour filtres ---
     from apps.catalogs.models import ConfigCategory
     from apps.configs.models import CompareConfig as Cfg
     categories = ConfigCategory.objects.all().order_by("name")
     configs    = Cfg.objects.filter(owner=request.user).order_by("name")
 
-    # ✅ Construire la liste des magasins à partir des runs (Web1 + Desktop), dédoublée
+    # --- Magasins disponibles (dédoublés) À PARTIR DE QS (pas 'runs') ---
     stores = []
     seen = set()
-    # on prend suffisamment de lignes pour couvrir tous les magasins (ou enlève la slice si tu préfères)
-    for r in qs[:1000]:
-        for ds in (r.dataset_web1, r.dataset_desktop):
-            if not ds:
-                continue
-            code = (ds.store_code or "").strip()
-            name = (ds.store_name or "").strip()
-            if not code and not name:
-                continue
-            key = (code, name)
-            if key in seen:
-                continue
-            seen.add(key)
-            stores.append({"code": code, "name": name})
-    # tri par code
+
+    # On interroge directement la DB pour éviter d’itérer sur des objets lourds
+    web1_pairs = qs.values_list("dataset_web1__store_code", "dataset_web1__store_name")
+    desk_pairs = qs.values_list("dataset_desktop__store_code", "dataset_desktop__store_name")
+
+    for code, name in list(web1_pairs) + list(desk_pairs):
+        code = (code or "").strip()
+        name = (name or "").strip()
+        if not code and not name:
+            continue
+        key = (code, name)
+        if key in seen:
+            continue
+        seen.add(key)
+        stores.append({"code": code, "name": name})
+
     stores.sort(key=lambda x: (x["code"] or "", x["name"] or ""))
 
-    runs = list(qs[:200])
+    # --- Jeu affiché ---
+    runs = list(qs[:200])  # ICI seulement on définit 'runs'
+
     status_choices = ["running", "success", "failed"]
 
     return render(request, "comparisons/runs_dashboard.html", {
@@ -250,7 +269,7 @@ def runs_dashboard(request):
         "categories": categories,
         "configs": configs,
         "status_choices": status_choices,
-        "stores": stores,  # <-- format [{'code': '230', 'name': 'CASINO PRIMA'}, ...]
+        "stores": stores,  # [{'code': '230', 'name': 'CASINO PRIMA'}, ...]
         "selected": {
             "category": selected_category,
             "config":   cfg_id or "",

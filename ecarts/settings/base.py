@@ -11,7 +11,7 @@ INSTALLED_APPS = [
     "django.contrib.admin","django.contrib.auth","django.contrib.contenttypes",
     "django.contrib.sessions","django.contrib.messages","django.contrib.staticfiles",
     "crispy_forms","crispy_bootstrap5",
-    "apps.accounts","apps.catalogs","apps.datasets","apps.configs","apps.comparisons","apps.audit","apps.ui",
+    "apps.accounts","apps.catalogs","apps.datasets","apps.configs","apps.comparisons","apps.audit","apps.ui", "widget_tweaks",
 ]
 
 
@@ -64,3 +64,8 @@ CRISPY_ALLOWED_TEMPLATE_PACKS = "bootstrap5"
 CRISPY_TEMPLATE_PACK = "bootstrap5"
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+
+# === Auth redirections / URLs (namespacées) ===
+LOGIN_URL = "accounts:login"
+LOGIN_REDIRECT_URL = "ui:home"
+LOGOUT_REDIRECT_URL = "ui:home"

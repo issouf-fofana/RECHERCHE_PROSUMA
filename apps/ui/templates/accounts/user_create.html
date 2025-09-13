@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block title %}Créer un compte{% endblock %}
+{% block content %}
+
+<h3 class="page-title mb-3">
+  <span class="dot"><i class="bi bi-person-plus"></i></span>
+  Créer un compte
+</h3>
+
+<div class="card shadow-sm">
+  <div class="card-body">
+    <form method="post" class="vstack gap-3">
+      {% csrf_token %}
+      <div class="row g-3">
+        <div class="col-md-4">
+          <label class="form-label">Nom d’utilisateur</label>
+          {{ form.username|add_class:"form-control" }}
+        </div>
+        <div class="col-md-4">
+          <label class="form-label">Email</label>
+          {{ form.email|add_class:"form-control" }}
+        </div>
+        <div class="col-md-4 d-flex align-items-end">
+          <div class="form-check">
+            {{ form.is_staff }}
+            <label class="form-check-label">Administrateur</label>
+          </div>
+        </div>
+        <div class="col-md-4">
+          <label class="form-label">Mot de passe</label>
+          {{ form.password1|add_class:"form-control" }}
+        </div>
+        <div class="col-md-4">
+          <label class="form-label">Confirmation</label>
+          {{ form.password2|add_class:"form-control" }}
+        </div>
+      </div>
+      <div>
+        <button class="btn btn-primary">Créer</button>
+        <a class="btn btn-soft" href="{% url 'accounts:users_list' %}">Annuler</a>
+      </div>
+    </form>
+  </div>
+</div>
+
+{% endblock %}

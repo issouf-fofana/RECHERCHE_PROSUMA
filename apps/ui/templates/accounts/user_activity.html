@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% block title %}Activité — {{ usr.username }}{% endblock %}
+{% block content %}
+
+<h3 class="page-title mb-3">
+  <span class="dot"><i class="bi bi-activity"></i></span>
+  Activité — {{ usr.username }}
+</h3>
+
+<div class="table-wrap">
+  <div class="table-responsive">
+    <table class="table table-modern table-hover align-middle mb-0">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Date</th>
+          <th>Magasin</th>
+          <th>Catégorie</th>
+          <th>Configuration</th>
+          <th>Statut</th>
+          <th>Écarts</th>
+          <th>Résultats</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in runs %}
+          <tr>
+            <td class="text-muted">#{{ r.id }}</td>
+            <td>{{ r.created_at|date:"Y-m-d H:i" }}</td>
+            <td>
+              {% with ds=r.dataset_web1|default:r.dataset_desktop %}
+                {% if ds and (ds.store_code or ds.store_name) %}
+                  {% if ds.store_code %}{{ ds.store_code }}{% else %}-{% endif %}
+                  {% if ds.store_name %} — {{ ds.store_name }}{% endif %}
+                {% else %}-{% endif %}
+              {% endwith %}
+            </td>
+            <td>{{ r.config.category.name }}</td>
+            <td class="fw-semibold">{{ r.config.name }}</td>
+            <td>
+              {% if r.status == "success" %}
+                <span class="badge badge-status badge-success">success</span>
+              {% elif r.status == "failed" %}
+                <span class="badge badge-status badge-failed">failed</span>
+              {% else %}
+                <span class="badge badge-status badge-running">{{ r.status }}</span>
+              {% endif %}
+            </td>
+            <td><strong>{{ r.diff_rows }}</strong></td>
+            <td>
+              <a class="btn btn-soft btn-sm" href="{% url 'comparisons:results' r.id %}">
+                <i class="bi bi-eye"></i> Voir
+              </a>
+            </td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="8" class="text-center text-muted py-4">Aucune activité.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{% endblock %}

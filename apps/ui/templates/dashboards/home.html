@@ -10,35 +10,20 @@
 </h3>
 
 <style>
-  /* --- Carousel des catégories --- */
   .carousel-shell { position: relative; }
   .carousel-wrap   { overflow: hidden; }
   .carousel-track  { display: flex; gap: 12px; }
   .cat-card        { min-width: 330px; max-width: 330px; flex: 0 0 330px; }
-  .carousel-nav {
-    position: absolute; top: 50%; transform: translateY(-50%);
-    width: 40px; height: 40px; border-radius: 999px;
-    display: grid; place-items: center; background: #fff; box-shadow: var(--ring);
-    border: 1px solid #e9ecef; color:#111827; cursor: pointer;
-  }
+  .carousel-nav { position: absolute; top: 50%; transform: translateY(-50%); width: 40px; height: 40px; border-radius: 999px; display: grid; place-items: center; background: #fff; box-shadow: var(--ring); border: 1px solid #e9ecef; color:#111827; cursor: pointer; }
   .carousel-prev { left: -14px; }
   .carousel-next { right: -14px; }
   .carousel-nav[disabled] { opacity: .35; pointer-events: none; }
-
   .mini-muted { color:#6b7280; }
   .badge-status { font-weight: 600; }
   .filters .btn-soft.active { background:#1f6feb14; border-color:#1f6feb30; }
-
-  /* Dropdown magasin */
-  .dropdown-menu .dropdown-item.active,
-  .dropdown-menu .dropdown-item:active {
-    background-color: #0d6efd;
-  }
+  .dropdown-menu .dropdown-item.active, .dropdown-menu .dropdown-item:active { background-color: #0d6efd; }
 </style>
-<!-- Bootstrap JS (dropdowns, offcanvas, etc.) -->
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" crossorigin="anonymous"></script>
 
-<!-- ===================== Filtres ===================== -->
 <form method="get" class="filters p-3 mb-3" id="periodForm">
   <div class="row g-3 align-items-end">
     <div class="col-md-3">
@@ -50,50 +35,53 @@
       <input type="date" name="end" class="form-control" value="{{ end|date:'Y-m-d' }}">
     </div>
 
-    <div class="col-md-6">
+    {% comment %} Sélecteur Utilisateur visible seulement pour les admins {% endcomment %}
+    {% if request.user.is_staff %}
+      <div class="col-md-3">
+        <label class="form-label">Utilisateur</label>
+        <select name="owner" class="form-select">
+          <option value="">Tous</option>
+          {% for u in owners %}
+            <option value="{{ u.id }}" {% if selected_owner == u.id|stringformat:"s" %}selected{% endif %}>{{ u.username }}</option>
+          {% endfor %}
+        </select>
+      </div>
+    {% endif %}
+
+    <div class="col-md-12">
       <label class="form-label d-block">Catégorie</label>
       <div class="d-flex flex-wrap gap-2 align-items-center">
         <a class="btn btn-soft {% if not selected_category %}active{% endif %}"
-           href="?start={{ start|date:'Y-m-d' }}&end={{ end|date:'Y-m-d' }}{% if selected_store %}&store={{ selected_store }}{% endif %}">
+           href="?start={{ start|date:'Y-m-d' }}&end={{ end|date:'Y-m-d' }}{% if selected_store %}&store={{ selected_store }}{% endif %}{% if selected_owner %}&owner={{ selected_owner }}{% endif %}">
           Toutes
         </a>
         {% for c in categories %}
           <a class="btn btn-soft {% if selected_category == c.id|stringformat:'s' %}active{% endif %}"
-             href="?start={{ start|date:'Y-m-d' }}&end={{ end|date:'Y-m-d' }}&category={{ c.id }}{% if selected_store %}&store={{ selected_store }}{% endif %}">
+             href="?start={{ start|date:'Y-m-d' }}&end={{ end|date:'Y-m-d' }}&category={{ c.id }}{% if selected_store %}&store={{ selected_store }}{% endif %}{% if selected_owner %}&owner={{ selected_owner }}{% endif %}">
             {{ c.name }}
           </a>
         {% endfor %}
 
-        <!-- ======== Menu déroulant Magasin (navigue au clic) ======== -->
+        <!-- Menu Magasin -->
         <div class="dropdown ms-2">
           <button class="btn btn-outline-secondary dropdown-toggle" type="button" id="storeMenuBtn" data-bs-toggle="dropdown" aria-expanded="false">
             <i class="bi bi-shop me-1"></i>
-            <span id="storeBtnLabel">
-              Magasin{% if selected_store %} :
-                {{ selected_store }}
-                {% for s in stores %}{% if s.code == selected_store %} — {{ s.name }}{% endif %}{% endfor %}
-              {% endif %}
-            </span>
+            {% if selected_store %}
+              {% for s in stores %}{% if s.code == selected_store %}{{ s.code }}{% if s.name %} — {{ s.name }}{% endif %}{% endif %}{% endfor %}
+            {% else %}Magasin{% endif %}
           </button>
           <ul class="dropdown-menu" aria-labelledby="storeMenuBtn" style="max-height: 380px; overflow:auto;">
-            <li>
-              <a class="dropdown-item {% if not selected_store %}active{% endif %}" href="#"
-                 data-store="">
-                 Tous les magasins
-              </a>
-            </li>
+            <li><a class="dropdown-item {% if not selected_store %}active{% endif %}" href="#" data-store="">Tous les magasins</a></li>
             <li><hr class="dropdown-divider"></li>
             {% for s in stores %}
               <li>
-                <a class="dropdown-item {% if selected_store == s.code %}active{% endif %}" href="#"
-                   data-store="{{ s.code }}">
+                <a class="dropdown-item {% if selected_store == s.code %}active{% endif %}" href="#" data-store="{{ s.code }}">
                   {{ s.code }}{% if s.name %} — {{ s.name }}{% endif %}
                 </a>
               </li>
             {% endfor %}
           </ul>
         </div>
-        <!-- /menu magasin -->
       </div>
     </div>
 
@@ -104,35 +92,17 @@
   </div>
 </form>
 
-<!-- ===================== KPI globaux ===================== -->
+<!-- KPI globaux -->
 <div class="metrics-grid mb-3">
-  <div class="metric-card">
-    <div class="icon blue"><i class="bi bi-collection"></i></div>
-    <div class="value">{{ kpis.total }}</div>
-    <div class="label">Comparatifs</div>
-  </div>
-  <div class="metric-card">
-    <div class="icon green"><i class="bi bi-check2-circle"></i></div>
-    <div class="value">{{ kpis.success }}</div>
-    <div class="label">Succès</div>
-  </div>
-  <div class="metric-card">
-    <div class="icon pink"><i class="bi bi-x-circle"></i></div>
-    <div class="value">{{ kpis.failed }}</div>
-    <div class="label">Échecs</div>
-  </div>
-  <div class="metric-card">
-    <div class="icon orange"><i class="bi bi-graph-up-arrow"></i></div>
-    <div class="value">{{ kpis.diffs }}</div>
-    <div class="label">Écarts cumulés</div>
-  </div>
+  <div class="metric-card"><div class="icon blue"><i class="bi bi-collection"></i></div><div class="value">{{ kpis.total }}</div><div class="label">Comparatifs</div></div>
+  <div class="metric-card"><div class="icon green"><i class="bi bi-check2-circle"></i></div><div class="value">{{ kpis.success }}</div><div class="label">Succès</div></div>
+  <div class="metric-card"><div class="icon pink"><i class="bi bi-x-circle"></i></div><div class="value">{{ kpis.failed }}</div><div class="label">Échecs</div></div>
+  <div class="metric-card"><div class="icon orange"><i class="bi bi-graph-up-arrow"></i></div><div class="value">{{ kpis.diffs }}</div><div class="label">Écarts cumulés</div></div>
 </div>
 
-<!-- ===================== Mini KPI par catégorie (carrousel) ===================== -->
+<!-- Catégories (carrousel) -->
 <div class="carousel-shell mb-3">
-  <button type="button" class="carousel-nav carousel-prev" id="catPrev" aria-label="Précédent">
-    <i class="bi bi-chevron-left"></i>
-  </button>
+  <button type="button" class="carousel-nav carousel-prev" id="catPrev" aria-label="Précédent"><i class="bi bi-chevron-left"></i></button>
   <div class="carousel-wrap" id="catWrap">
     <div class="carousel-track" id="catTrack" data-visible="3">
       {% for c in cat_summary %}
@@ -140,7 +110,7 @@
           <div class="d-flex justify-content-between align-items-center">
             <div class="fw-bold">{{ c.name }}</div>
             <a class="btn btn-soft btn-sm"
-               href="{% url 'comparisons:runs_dashboard' %}?category={{ c.id }}{% if selected_store %}&store={{ selected_store }}{% endif %}{% if start %}&start={{ start|date:'Y-m-d' }}{% endif %}{% if end %}&end={{ end|date:'Y-m-d' }}{% endif %}">
+               href="{% url 'comparisons:runs_dashboard' %}?category={{ c.id }}{% if selected_store %}&store={{ selected_store }}{% endif %}{% if start %}&start={{ start|date:'Y-m-d' }}{% endif %}{% if end %}&end={{ end|date:'Y-m-d' }}{% endif %}{% if selected_owner %}&owner={{ selected_owner }}{% endif %}">
               Voir
             </a>
           </div>
@@ -164,12 +134,10 @@
       {% endfor %}
     </div>
   </div>
-  <button type="button" class="carousel-nav carousel-next" id="catNext" aria-label="Suivant">
-    <i class="bi bi-chevron-right"></i>
-  </button>
+  <button type="button" class="carousel-nav carousel-next" id="catNext" aria-label="Suivant"><i class="bi bi-chevron-right"></i></button>
 </div>
 
-<!-- ===================== Mini KPI par magasin (si fournis) ===================== -->
+<!-- Mini KPI par magasin -->
 {% if per_store %}
 <div class="row g-3 mb-3">
   {% for s in per_store %}
@@ -178,7 +146,7 @@
         <div class="d-flex justify-content-between align-items-center">
           <div class="fw-bold">{{ s.code }}{% if s.name %} — {{ s.name }}{% endif %}</div>
           <a class="btn btn-soft btn-sm"
-             href="{% url 'comparisons:runs_dashboard' %}?store={{ s.code }}{% if selected_category %}&category={{ selected_category }}{% endif %}&start={{ start|date:'Y-m-d' }}&end={{ end|date:'Y-m-d' }}">
+             href="{% url 'comparisons:runs_dashboard' %}?store={{ s.code }}{% if selected_category %}&category={{ selected_category }}{% endif %}&start={{ start|date:'Y-m-d' }}&end={{ end|date:'Y-m-d' }}{% if selected_owner %}&owner={{ selected_owner }}{% endif %}">
             Voir
           </a>
         </div>
@@ -203,9 +171,8 @@
 </div>
 {% endif %}
 
-<!-- ===================== Graphes ===================== -->
+<!-- Graphiques -->
 <div class="row g-3">
-  <!-- Tendance -->
   <div class="col-lg-8">
     <div class="filters p-3">
       <div class="d-flex align-items-center justify-content-between mb-2">
@@ -214,16 +181,11 @@
       {% if has_line_data %}
         <canvas id="lineChart" height="110"></canvas>
       {% else %}
-        <div class="empty-card">
-          <i class="bi bi-graph-up"></i>
-          <div class="title">Aucune donnée</div>
-          <div class="hint">Lance des comparatifs pour voir l’évolution mensuelle.</div>
-        </div>
+        <div class="empty-card"><i class="bi bi-graph-up"></i><div class="title">Aucune donnée</div><div class="hint">Lance des comparatifs pour voir l’évolution mensuelle.</div></div>
       {% endif %}
     </div>
   </div>
 
-  <!-- Donut statuts -->
   <div class="col-lg-3">
     <div class="filters p-3">
       <div class="d-flex align-items-center justify-content-between mb-2">
@@ -234,24 +196,20 @@
           <canvas id="donutChart" height="140"></canvas>
         </div>
       {% else %}
-        <div class="empty-card">
-          <i class="bi bi-pie-chart"></i>
-          <div class="title">Aucune donnée</div>
-          <div class="hint">Les statuts apparaîtront après tes premières vérifications.</div>
-        </div>
+        <div class="empty-card"><i class="bi bi-pie-chart"></i><div class="title">Aucune donnée</div><div class="hint">Les statuts apparaîtront après tes premières vérifications.</div></div>
       {% endif %}
     </div>
   </div>
 </div>
 
-<!-- ===================== Dernières vérifications ===================== -->
+<!-- Activité récente -->
 <div class="row g-4 mt-4">
   <div class="col-lg-8">
     <div class="filters p-4">
       <div class="d-flex align-items-center justify-content-between mb-2">
         <h6 class="mb-0 fw-bold"><i class="bi bi-clock-history me-2"></i>Dernières vérifications</h6>
         <a class="btn btn-soft btn-sm"
-           href="{% url 'comparisons:runs_dashboard' %}?{% if selected_category %}category={{ selected_category }}&{% endif %}{% if selected_store %}store={{ selected_store }}&{% endif %}start={{ start|date:'Y-m-d' }}&end={{ end|date:'Y-m-d' }}">
+           href="{% url 'comparisons:runs_dashboard' %}?{% if selected_category %}category={{ selected_category }}&{% endif %}{% if selected_store %}store={{ selected_store }}&{% endif %}{% if selected_owner %}owner={{ selected_owner }}&{% endif %}start={{ start|date:'Y-m-d' }}&end={{ end|date:'Y-m-d' }}">
           Voir tout
         </a>
       </div>
@@ -262,10 +220,7 @@
             <div class="activity-icon"><i class="bi bi-rocket-takeoff"></i></div>
             <div class="activity-body">
               <div class="d-flex justify-content-between align-items-center">
-                <div class="fw-semibold">
-                  {{ r.config.category.name }} — {{ r.config.name }}
-                  <span class="text-muted">(#{{ r.id }})</span>
-                </div>
+                <div class="fw-semibold">{{ r.config.category.name }} — {{ r.config.name }} <span class="text-muted">(#{{ r.id }})</span></div>
                 <div class="small text-muted">{{ r.created_at|timesince }} ago</div>
               </div>
               <div class="mt-1 d-flex align-items-center gap-2 flex-wrap">
@@ -277,9 +232,7 @@
                   <span class="badge badge-status badge-running">{{ r.status }}</span>
                 {% endif %}
                 <span class="text-muted small">Écarts: <strong>{{ r.diff_rows }}</strong></span>
-                <a class="btn btn-soft btn-sm" href="{% url 'comparisons:results' r.id %}">
-                  <i class="bi bi-eye"></i> Détails
-                </a>
+                <a class="btn btn-soft btn-sm" href="{% url 'comparisons:results' r.id %}"><i class="bi bi-eye"></i> Détails</a>
                 {% if r.export_csv %}<a class="btn btn-soft btn-sm" href="{{ r.export_csv }}"><i class="bi bi-filetype-csv"></i> CSV</a>{% endif %}
                 {% if r.export_xlsx %}<a class="btn btn-soft btn-sm" href="{{ r.export_xlsx }}"><i class="bi bi-filetype-xlsx"></i> XLSX</a>{% endif %}
               </div>
@@ -295,20 +248,15 @@
   <div class="col-lg-4">
     <div class="filters p-3">
       <h6 class="mb-2 fw-bold"><i class="bi bi-lightbulb me-2"></i>Suivi & Conseils</h6>
-      <p class="small text-muted mb-2">
-        Utilise des <strong>clés composites</strong> pour fiabiliser tes rapprochements (Référence, Date, Magasin…).
-      </p>
-      <p class="small text-muted mb-0">
-        Après une vérification <em>sans écart</em>, la catégorie est marquée <strong>Intégrité OK</strong>.
-      </p>
+      <p class="small text-muted mb-2">Utilise des <strong>clés composites</strong> pour fiabiliser tes rapprochements (Référence, Date, Magasin…).</p>
+      <p class="small text-muted mb-0">Après une vérification <em>sans écart</em>, la catégorie est marquée <strong>Intégrité OK</strong>.</p>
     </div>
   </div>
 </div>
 
-<!-- ===================== JS Chart & Carousel & Store menu ===================== -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script>
-  // ---- Charts ----
+  // Charts
   const labels = {{ labels_json|safe }};
   const runsSeries = {{ runs_series_json|safe }};
   const diffsSeries = {{ diffs_series_json|safe }};
@@ -317,8 +265,7 @@
 
   const lineEl = document.getElementById('lineChart');
   if (lineEl && {{ has_line_data|yesno:"true,false" }}) {
-    new Chart(lineEl, {
-      type: 'line',
+    new Chart(lineEl, { type: 'line',
       data: { labels, datasets: [
         { label: 'Runs', data: runsSeries, tension: .35 },
         { label: 'Écarts', data: diffsSeries, tension: .35 }
@@ -329,29 +276,26 @@
 
   const donutEl = document.getElementById('donutChart');
   if (donutEl && {{ has_donut_data|yesno:"true,false" }}) {
-    new Chart(donutEl, {
-      type: 'doughnut',
+    new Chart(donutEl, { type: 'doughnut',
       data: { labels: statusLabels, datasets: [{ data: statusValues }] },
       options: { cutout:'60%', plugins:{ legend:{ position:'bottom' } } }
     });
   }
 
-  // ---- Carousel (fait défiler le conteneur qui scrolle réellement) ----
+  // Carrousel
   const wrap = document.getElementById('catWrap');
   const track = document.getElementById('catTrack');
   const prev = document.getElementById('catPrev');
   const next = document.getElementById('catNext');
-
   function updateArrows() {
     const maxScroll = track.scrollWidth - wrap.clientWidth - 2;
     prev.toggleAttribute('disabled', wrap.scrollLeft <= 0);
     next.toggleAttribute('disabled', wrap.scrollLeft >= maxScroll);
   }
   function scrollByPage(dir) {
-    const card = track.querySelector('.cat-card');
-    if (!card) return;
+    const card = track.querySelector('.cat-card'); if (!card) return;
     const visible = Number(track.dataset.visible || 3);
-    const amount = (card.offsetWidth + 12) * visible; // 12 = gap
+    const amount = (card.offsetWidth + 12) * visible;
     wrap.scrollBy({ left: dir * amount, behavior: 'smooth' });
     setTimeout(updateArrows, 300);
   }
@@ -362,30 +306,26 @@
     setTimeout(updateArrows, 60);
   }
 
-  // ---- Menu Magasin : navigation au clic ----
+  // Menu Magasin : conserve owner/category dans l’URL
   const storeItems = document.querySelectorAll('.dropdown-menu [data-store]');
   function navigateWithStore(storeCode) {
     const params = new URLSearchParams(window.location.search);
     const start = params.get('start') || '{{ start|date:"Y-m-d" }}';
     const end   = params.get('end')   || '{{ end|date:"Y-m-d" }}';
     const cat   = params.get('category') || '{{ selected_category|default_if_none:"" }}';
+    const owner = params.get('owner') || '{{ selected_owner|default_if_none:"" }}';
 
     const p = new URLSearchParams();
     if (start) p.set('start', start);
     if (end)   p.set('end', end);
     if (cat)   p.set('category', cat);
-
+    if (owner) p.set('owner', owner);
     if (storeCode) p.set('store', storeCode);
-    // si "Tous", on n'ajoute pas 'store'
-    const url = `${window.location.pathname}?${p.toString()}`;
-    window.location.href = url;
+
+    window.location.href = `${window.location.pathname}?${p.toString()}`;
   }
   storeItems.forEach(it => {
-    it.addEventListener('click', (e) => {
-      e.preventDefault();
-      const code = it.getAttribute('data-store'); // "" => Tous
-      navigateWithStore(code);
-    });
+    it.addEventListener('click', (e) => { e.preventDefault(); navigateWithStore(it.getAttribute('data-store')); });
   });
 </script>
 
