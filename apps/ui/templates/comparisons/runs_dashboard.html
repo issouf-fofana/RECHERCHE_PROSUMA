@@ -7,24 +7,78 @@
   Mes comparatifs
 </h3>
 
+<style>
+  /* --- KPI compacts + barre d’accent --- */
+  .metrics-grid{
+    display:grid; gap:12px;
+    grid-template-columns: repeat(12, 1fr);
+  }
+  .metric-card{
+    grid-column: span 3;
+    position: relative;
+    background:#fff;
+    border-radius: 18px;
+    border:1px solid #e9eef5;
+    box-shadow: var(--ring);
+    padding: 16px 16px 14px 18px;
+    min-height: 120px;
+    overflow: hidden;
+  }
+  .metric-card::after{
+    content:""; position:absolute; inset:-1px auto -1px -1px;
+    width:8px; border-radius:18px 0 0 18px;
+  }
+  .metric-card.ac-blue::after   { background: linear-gradient(180deg,#3b82f6 0%, #1d4ed8 100%); }
+  .metric-card.ac-green::after  { background: linear-gradient(180deg,#16a34a 0%, #0f7a36 100%); }
+  .metric-card.ac-pink::after   { background: linear-gradient(180deg,#db2777 0%, #f43f5e 100%); }
+  .metric-card.ac-orange::after { background: linear-gradient(180deg,#f59e0b 0%, #f97316 100%); }
+
+  .metric-card .icon{
+    width:44px;height:44px;border-radius:14px;
+    display:flex;align-items:center;justify-content:center;
+    color:#fff; font-size:20px; margin-bottom:8px;
+  }
+  .icon.blue{   background: linear-gradient(135deg,#3b82f6,#2563eb); }
+  .icon.green{  background: linear-gradient(135deg,#16a34a,#22c55e); }
+  .icon.pink{   background: linear-gradient(135deg,#db2777,#f43f5e); }
+  .icon.orange{ background: linear-gradient(135deg,#f59e0b,#f97316); }
+
+  .metric-card .value{ font-weight:800; font-size:1.8rem; line-height:1; }
+  .metric-card .label{ color:#6b7280; font-size:.95rem; margin-top:6px; }
+
+  /* --- Filtres + tableau --- */
+  .filters{ background:#fff; border-radius:16px; box-shadow:var(--ring); padding:14px; }
+  .table-wrap{ background:#fff; border-radius:16px; box-shadow:var(--ring); overflow:hidden; }
+  .table-modern thead th{ background:#f3f6ff; color:#0b1b46; font-weight:700; border-bottom:0; }
+  .btn-soft{
+    border-radius:12px; border:1px solid #e5e7eb; background:#fff; color:#111827;
+    padding:.35rem .6rem; font-weight:600;
+  }
+  .btn-soft:hover{ background:#f9fafb; }
+  .badge-status{ font-weight:700; letter-spacing:.2px; border-radius:999px; }
+  .badge-success{ background:#e8fff3; color:#0a7a3d; }
+  .badge-failed{  background:#ffefef; color:#b42318; }
+  .badge-running{ background:#eef5ff; color:#1e40af; }
+</style>
+
 <!-- Cartes métriques -->
 <div class="metrics-grid mb-3">
-  <div class="metric-card">
+  <div class="metric-card ac-blue">
     <div class="icon blue"><i class="bi bi-collection"></i></div>
     <div class="value">{{ stats.total }}</div>
     <div class="label">Runs totaux</div>
   </div>
-  <div class="metric-card">
+  <div class="metric-card ac-green">
     <div class="icon green"><i class="bi bi-check2-circle"></i></div>
     <div class="value">{{ stats.success }}</div>
     <div class="label">Succès</div>
   </div>
-  <div class="metric-card">
+  <div class="metric-card ac-pink">
     <div class="icon pink"><i class="bi bi-x-circle"></i></div>
     <div class="value">{{ stats.failed }}</div>
     <div class="label">Échecs</div>
   </div>
-  <div class="metric-card">
+  <div class="metric-card ac-orange">
     <div class="icon orange"><i class="bi bi-arrows-expand"></i></div>
     <div class="value">{{ stats.diffs }}</div>
     <div class="label">Écarts cumulés</div>
@@ -32,9 +86,9 @@
 </div>
 
 <!-- Filtres -->
-<div class="filters mb-3">
-  <form method="get" class="row g-2 align-items-end">
-    <div class="col-md-3">
+<div class="filters mb-2">
+  <form method="get" class="row g-2">
+    <div class="col-12 col-md-6 col-xl-2">
       <label class="form-label">Catégorie</label>
       <select name="category" class="form-select">
         <option value="">Toutes</option>
@@ -43,7 +97,8 @@
         {% endfor %}
       </select>
     </div>
-    <div class="col-md-3">
+
+    <div class="col-12 col-md-6 col-xl-2">
       <label class="form-label">Configuration</label>
       <select name="config" class="form-select">
         <option value="">Toutes</option>
@@ -54,7 +109,8 @@
         {% endfor %}
       </select>
     </div>
-    <div class="col-md-3">
+
+    <div class="col-12 col-md-6 col-xl-1">
       <label class="form-label">Statut</label>
       <select name="status" class="form-select">
         <option value="">Tous</option>
@@ -63,7 +119,8 @@
         {% endfor %}
       </select>
     </div>
-    <div class="col-md-3">
+
+    <div class="col-12 col-md-6 col-xl-2">
       <label class="form-label">Magasin</label>
       <select name="store" class="form-select">
         <option value="">Tous</option>
@@ -75,8 +132,23 @@
       </select>
     </div>
 
-    <div class="col-12 d-flex gap-2 mt-1">
-      <button class="btn btn-primary">Filtrer</button>
+    {% if request.user.is_staff and owners %}
+      <div class="col-12 col-md-6 col-xl-2">
+        <label class="form-label">Utilisateur</label>
+        <select name="owner" class="form-select">
+          <option value="">Tous</option>
+          {% for u in owners %}
+            <option value="{{ u.id }}" {% if selected.owner == u.id|stringformat:"s" %}selected{% endif %}>
+              {{ u.username }}
+            </option>
+          {% endfor %}
+        </select>
+      </div>
+    {% endif %}
+
+    <!-- Boutons à droite -->
+    <div class="col-12 col-xl-3 d-flex justify-content-xl-end align-items-end gap-2 mt-1">
+      <button class="btn btn-primary" type="submit">Filtrer</button>
       <a href="{% url 'comparisons:runs_dashboard' %}" class="btn btn-soft">Réinitialiser</a>
     </div>
   </form>
@@ -108,15 +180,15 @@
           <td>{{ r.created_at|date:"Y-m-d H:i" }}</td>
 
           <td>
-            {% if r.dataset_web1.store_code or r.dataset_web1.store_name %}
-              {% if r.dataset_web1.store_code %}{{ r.dataset_web1.store_code }}{% else %}-{% endif %}
-              {% if r.dataset_web1.store_name %} — {{ r.dataset_web1.store_name }}{% endif %}
-            {% elif r.dataset_desktop.store_code or r.dataset_desktop.store_name %}
-              {% if r.dataset_desktop.store_code %}{{ r.dataset_desktop.store_code }}{% else %}-{% endif %}
-              {% if r.dataset_desktop.store_name %} — {{ r.dataset_desktop.store_name }}{% endif %}
-            {% else %}
-              -
-            {% endif %}
+            {% if r.dataset_web1 %}
+              {% if r.dataset_web1.store_code or r.dataset_web1.store_name %}
+                {{ r.dataset_web1.store_code|default:"-" }}{% if r.dataset_web1.store_name %} — {{ r.dataset_web1.store_name }}{% endif %}
+              {% else %}-{% endif %}
+            {% elif r.dataset_desktop %}
+              {% if r.dataset_desktop.store_code or r.dataset_desktop.store_name %}
+                {{ r.dataset_desktop.store_code|default:"-" }}{% if r.dataset_desktop.store_name %} — {{ r.dataset_desktop.store_name }}{% endif %}
+              {% else %}-{% endif %}
+            {% else %}-{% endif %}
           </td>
 
           <td>{{ r.config.category.name }}</td>
@@ -141,22 +213,26 @@
             </a>
           </td>
 
-          <!-- Actions (modales) -->
+          <!-- Actions (affichées seulement si autorisé) -->
           <td class="text-nowrap">
-            <button type="button"
-                    class="btn btn-soft btn-sm js-edit-run"
-                    title="Modifier"
-                    data-run-id="{{ r.id }}"
-                    data-run-notes="{{ r.message|default_if_none:''|escape }}">
-              <i class="bi bi-pencil-square"></i>
-            </button>
+            {% if request.user.is_staff or r.config.owner_id == request.user.id %}
+              <button type="button"
+                      class="btn btn-soft btn-sm js-edit-run"
+                      title="Modifier"
+                      data-run-id="{{ r.id }}"
+                      data-run-notes="{{ r.message|default_if_none:''|escape }}">
+                <i class="bi bi-pencil-square"></i>
+              </button>
 
-            <button type="button"
-                    class="btn btn-soft btn-sm text-danger js-del-run"
-                    title="Supprimer"
-                    data-run-id="{{ r.id }}">
-              <i class="bi bi-trash"></i>
-            </button>
+              <button type="button"
+                      class="btn btn-soft btn-sm text-danger js-del-run"
+                      title="Supprimer"
+                      data-run-id="{{ r.id }}">
+                <i class="bi bi-trash"></i>
+              </button>
+            {% else %}
+              <span class="text-muted small">—</span>
+            {% endif %}
           </td>
 
           <td class="text-nowrap">
@@ -190,7 +266,7 @@
         </div>
         <div class="modal-body">
           <label class="form-label">Notes</label>
-          <!-- IMPORTANT : name="message" correspond à la vue run_edit -->
+          <!-- name="message" attendu par la vue run_edit -->
           <textarea name="message" id="editMessage" class="form-control" rows="5"
                     placeholder="Saisir vos notes…"></textarea>
         </div>
@@ -227,24 +303,18 @@
 </div>
 
 <!-- JS pour alimenter les modales -->
-{% block scripts %}
 <script>
 document.addEventListener('DOMContentLoaded', function () {
-  if (!window.bootstrap) {
-    console.error('Bootstrap JS non chargé.');
-    return;
-  }
+  if (!window.bootstrap) return;
 
-  const editModalEl = document.getElementById('editRunModal');
-  const delModalEl  = document.getElementById('deleteRunModal');
-  const editModal = new bootstrap.Modal(editModalEl);
-  const delModal  = new bootstrap.Modal(delModalEl);
+  const editModal = new bootstrap.Modal(document.getElementById('editRunModal'));
+  const delModal  = new bootstrap.Modal(document.getElementById('deleteRunModal'));
 
   // EDIT
   document.querySelectorAll('.js-edit-run').forEach(btn => {
     btn.addEventListener('click', () => {
-      const id    = btn.dataset.runId;
-      const notes = btn.dataset.runNotes || '';
+      const id    = btn.getAttribute('data-run-id');
+      const notes = btn.getAttribute('data-run-notes') || '';
       document.getElementById('editMessage').value = notes;
 
       const form = document.getElementById('editRunForm');
@@ -256,7 +326,7 @@ document.addEventListener('DOMContentLoaded', function () {
   // DELETE
   document.querySelectorAll('.js-del-run').forEach(btn => {
     btn.addEventListener('click', () => {
-      const id = btn.dataset.runId;
+      const id = btn.getAttribute('data-run-id');
       document.getElementById('deleteRunText').innerText = `Supprimer le comparatif #${id} ?`;
 
       const form = document.getElementById('deleteRunForm');
@@ -266,7 +336,5 @@ document.addEventListener('DOMContentLoaded', function () {
   });
 });
 </script>
-{% endblock %}
-
 
 {% endblock %}

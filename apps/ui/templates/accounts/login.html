@@ -3,29 +3,127 @@
 {% block title %}Connexion{% endblock %}
 
 {% block content %}
-<div class="d-flex justify-content-center">
-  <div class="card shadow-sm" style="max-width:420px; width:100%">
-    <div class="card-body">
-      <h5 class="card-title mb-3">Se connecter</h5>
 
-      <form method="post" id="loginForm" novalidate>
+<h3 class="page-title mb-3">
+  <span class="dot"><i class="bi bi-shield-lock"></i></span>
+  Connexion
+</h3>
+
+<style>
+  /* --- Carte moderne avec barre d’accent --- */
+  .auth-card{
+    background:#fff; border:1px solid #e9eef5; border-radius:18px; box-shadow:var(--ring);
+    position:relative; overflow:hidden; max-width: 480px; width:100%;
+  }
+  .auth-card::before{
+    content:""; position:absolute; inset:-1px auto -1px -1px; width:8px;
+    background: linear-gradient(180deg,#3b82f6 0%, #1d4ed8 100%);
+    border-radius:18px 0 0 18px;
+  }
+  .auth-head{
+    background:linear-gradient(180deg,#f7f9ff 0%, #ffffff 100%);
+    border-bottom:1px solid #edf1f7; padding:14px 18px;
+  }
+  .auth-wrap{
+    display:flex; justify-content:center; margin-top:6px;
+  }
+  .hint{ color:#6b7280; }
+
+  /* --- Champs stylés sans widget_tweaks --- */
+  .login-form input[type="text"],
+  .login-form input[type="password"]{
+    border:1px solid #e5e7eb; border-radius:12px; padding:.65rem .75rem;
+    width:100%; outline:none; background:#fff;
+  }
+  .login-form input:focus{
+    border-color:#93c5fd; box-shadow:0 0 0 3px rgba(59,130,246,.15);
+  }
+
+  /* --- Icons dans les champs --- */
+  .field-wrap{ position: relative; }
+  .field-wrap .input-icon{
+    position:absolute; left:10px; top:50%; transform:translateY(-50%); pointer-events:none;
+    font-size:1.05rem; color:#9aa3b2;
+  }
+  .field-wrap input{ padding-left:2.3rem; }
+
+  /* Bouton oeil (show/hide password) */
+  .pw-toggle{
+    position:absolute; right:8px; top:50%; transform:translateY(-50%);
+    border:1px solid #e5e7eb; background:#fff; border-radius:10px; padding:.2rem .45rem;
+  }
+  .pw-toggle:hover{ background:#f9fafb; }
+
+  /* Petits boutons doux */
+  .btn-soft{
+    border-radius:12px; border:1px solid #e5e7eb; background:#fff; color:#111827;
+    padding:.45rem .7rem; font-weight:600;
+  }
+  .btn-soft:hover{ background:#f9fafb; }
+
+  /* Erreurs */
+  .is-invalid{ border-color:#b42318 !important; box-shadow:0 0 0 3px rgba(180,35,24,.12) !important; }
+  .field-errors{ color:#b42318; font-size:.9rem; margin-top:.35rem; }
+</style>
+
+<div class="auth-wrap">
+  <div class="auth-card">
+    <div class="auth-head d-flex align-items-center gap-2">
+      <span class="badge rounded-pill text-bg-primary"><i class="bi bi-person-lock"></i></span>
+      <div>
+        <div class="fw-bold">Se connecter</div>
+        <div class="hint">Entre ton identifiant et ton mot de passe.</div>
+      </div>
+    </div>
+
+    <div class="p-3 p-md-4">
+      <form method="post" id="loginForm" class="login-form" novalidate>
         {% csrf_token %}
 
         {% if form.non_field_errors %}
-          <div class="alert alert-danger">{{ form.non_field_errors }}</div>
+          <div class="alert alert-danger mb-3">
+            {% for e in form.non_field_errors %}{{ e }}<br>{% endfor %}
+          </div>
         {% endif %}
 
         <div class="mb-3">
           <label class="form-label" for="{{ form.username.id_for_label }}">Nom d’utilisateur</label>
-          {{ form.username }}
+          <div class="field-wrap">
+            <span class="input-icon"><i class="bi bi-person"></i></span>
+            {{ form.username }}
+          </div>
+          {% if form.username.errors %}
+            <div class="field-errors">{% for e in form.username.errors %}{{ e }}{% endfor %}</div>
+          {% endif %}
         </div>
 
         <div class="mb-3">
           <label class="form-label" for="{{ form.password.id_for_label }}">Mot de passe</label>
-          {{ form.password }}
+          <div class="field-wrap">
+            <span class="input-icon"><i class="bi bi-key"></i></span>
+            {{ form.password }}
+            <button type="button" class="pw-toggle" id="pwToggle" aria-label="Afficher/Masquer">
+              <i class="bi bi-eye"></i>
+            </button>
+          </div>
+          {% if form.password.errors %}
+            <div class="field-errors">{% for e in form.password.errors %}{{ e }}{% endfor %}</div>
+          {% endif %}
         </div>
 
-        <button class="btn btn-primary w-100">Connexion</button>
+        <button class="btn btn-primary w-100 mt-2">
+          <i class="bi bi-box-arrow-in-right me-1"></i> Connexion
+        </button>
+
+        <div class="d-flex justify-content-between align-items-center mt-3">
+          {% url 'password_reset' as reset_url %}
+          <div class="small hint">
+            {% if reset_url %}<a href="{{ reset_url }}" class="text-decoration-none">Mot de passe oublié&nbsp;?</a>{% endif %}
+          </div>
+          <div class="small hint">
+            Besoin d’aide<a href="mailto:issouf.fofana@prosuma.ci" class="text-decoration-none">&nbsp;? Contacte l'administrateur.
+          </div>
+        </div>
       </form>
     </div>
   </div>
@@ -33,15 +131,37 @@
 
 <script>
 (function () {
-  const f = document.getElementById('loginForm');
-  if (!f) return;
-  f.querySelectorAll('input').forEach(el => {
+  const form = document.getElementById('loginForm');
+  if (!form) return;
+
+  // Ajoute .form-control aux champs si absent + placeholders sympas
+  form.querySelectorAll('input').forEach(el => {
     el.classList.add('form-control');
     if (!el.placeholder) {
       if (el.name === 'username') el.placeholder = 'Identifiant';
       if (el.name === 'password') el.placeholder = 'Mot de passe';
     }
   });
+
+  // Marque visuellement les champs en erreur
+  {% if form.username.errors %}
+    (function(){ const el=document.getElementById('{{ form.username.id_for_label }}'); if(el) el.classList.add('is-invalid'); })();
+  {% endif %}
+  {% if form.password.errors %}
+    (function(){ const el=document.getElementById('{{ form.password.id_for_label }}'); if(el) el.classList.add('is-invalid'); })();
+  {% endif %}
+
+  // Toggle mot de passe
+  const btn = document.getElementById('pwToggle');
+  const input = document.getElementById('{{ form.password.id_for_label }}');
+  if (btn && input) {
+    btn.addEventListener('click', () => {
+      const eye = btn.querySelector('i');
+      input.type = (input.type === 'password') ? 'text' : 'password';
+      if (eye){ eye.classList.toggle('bi-eye'); eye.classList.toggle('bi-eye-slash'); }
+    });
+  }
 })();
 </script>
+
 {% endblock %}

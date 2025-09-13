@@ -10,14 +10,59 @@
 </h3>
 
 <style>
+  /* -------- KPI plus compacts + bordure d’accent -------- */
+  .metrics-grid{
+    display:grid; gap:12px;
+    grid-template-columns: repeat(12, 1fr);
+  }
+  .metric-card{
+    grid-column: span 3;
+    position: relative;
+    background:#fff;
+    border-radius: 18px;
+    border:1px solid #e9eef5;
+    box-shadow: var(--ring);
+    padding: 16px 16px 14px 18px;
+    min-height: 120px;
+    overflow: hidden;
+  }
+  .metric-card::after{
+    content:""; position:absolute; inset:-1px auto -1px -1px;
+    width:8px; border-radius:18px 0 0 18px;
+  }
+  .metric-card.ac-blue::after   { background: linear-gradient(180deg,#3b82f6 0%, #1d4ed8 100%); }
+  .metric-card.ac-green::after  { background: linear-gradient(180deg,#16a34a 0%, #0f7a36 100%); }
+  .metric-card.ac-orange::after { background: linear-gradient(180deg,#f59e0b 0%, #f97316 100%); }
+  .metric-card.ac-pink::after   { background: linear-gradient(180deg,#db2777 0%, #f43f5e 100%); }
+
+  .metric-card .icon{
+    width:44px;height:44px;border-radius:14px;
+    display:flex;align-items:center;justify-content:center;
+    color:#fff; font-size:20px; margin-bottom:8px;
+  }
+  .icon.blue{   background: linear-gradient(135deg,#3b82f6,#2563eb); }
+  .icon.green{  background: linear-gradient(135deg,#16a34a,#22c55e); }
+  .icon.orange{ background: linear-gradient(135deg,#f59e0b,#f97316); }
+  .icon.pink{   background: linear-gradient(135deg,#db2777,#f43f5e); }
+
+  .metric-card .value{ font-weight:800; font-size:1.8rem; line-height:1; }
+  .metric-card .label{ color:#6b7280; font-size:.95rem; margin-top:6px; }
+
+  /* -------- Carrousel & filtres -------- */
   .carousel-shell { position: relative; }
   .carousel-wrap   { overflow: hidden; }
   .carousel-track  { display: flex; gap: 12px; }
   .cat-card        { min-width: 330px; max-width: 330px; flex: 0 0 330px; }
-  .carousel-nav { position: absolute; top: 50%; transform: translateY(-50%); width: 40px; height: 40px; border-radius: 999px; display: grid; place-items: center; background: #fff; box-shadow: var(--ring); border: 1px solid #e9ecef; color:#111827; cursor: pointer; }
-  .carousel-prev { left: -14px; }
-  .carousel-next { right: -14px; }
+  .carousel-nav {
+    position: absolute; top: 50%; transform: translateY(-50%);
+    width: 36px; height: 36px; border-radius: 999px;
+    display: grid; place-items: center; background: #fff; box-shadow: var(--ring);
+    border: 1px solid #e9ecef; color:#111827; cursor: pointer;
+  }
+  .carousel-prev { left: -12px; }
+  .carousel-next { right: -12px; }
   .carousel-nav[disabled] { opacity: .35; pointer-events: none; }
+
   .mini-muted { color:#6b7280; }
   .badge-status { font-weight: 600; }
   .filters .btn-soft.active { background:#1f6feb14; border-color:#1f6feb30; }
@@ -30,12 +75,12 @@
       <label class="form-label">Du</label>
       <input type="date" name="start" class="form-control" value="{{ start|date:'Y-m-d' }}">
     </div>
+
     <div class="col-md-3">
       <label class="form-label">Au</label>
       <input type="date" name="end" class="form-control" value="{{ end|date:'Y-m-d' }}">
     </div>
 
-    {% comment %} Sélecteur Utilisateur visible seulement pour les admins {% endcomment %}
     {% if request.user.is_staff %}
       <div class="col-md-3">
         <label class="form-label">Utilisateur</label>
@@ -48,9 +93,11 @@
       </div>
     {% endif %}
 
-    <div class="col-md-12">
+    <!-- Ligne Catégorie + Magasin + Boutons -->
+    <div class="col-12">
       <label class="form-label d-block">Catégorie</label>
-      <div class="d-flex flex-wrap gap-2 align-items-center">
+
+      <div class="d-flex flex-wrap align-items-center gap-2">
         <a class="btn btn-soft {% if not selected_category %}active{% endif %}"
            href="?start={{ start|date:'Y-m-d' }}&end={{ end|date:'Y-m-d' }}{% if selected_store %}&store={{ selected_store }}{% endif %}{% if selected_owner %}&owner={{ selected_owner }}{% endif %}">
           Toutes
@@ -62,15 +109,14 @@
           </a>
         {% endfor %}
 
-        <!-- Menu Magasin -->
-        <div class="dropdown ms-2">
+        <div class="dropdown ms-1">
           <button class="btn btn-outline-secondary dropdown-toggle" type="button" id="storeMenuBtn" data-bs-toggle="dropdown" aria-expanded="false">
             <i class="bi bi-shop me-1"></i>
             {% if selected_store %}
               {% for s in stores %}{% if s.code == selected_store %}{{ s.code }}{% if s.name %} — {{ s.name }}{% endif %}{% endif %}{% endfor %}
             {% else %}Magasin{% endif %}
           </button>
-          <ul class="dropdown-menu" aria-labelledby="storeMenuBtn" style="max-height: 380px; overflow:auto;">
+          <ul class="dropdown-menu" aria-labelledby="storeMenuBtn" style="max-height: 360px; overflow:auto;">
             <li><a class="dropdown-item {% if not selected_store %}active{% endif %}" href="#" data-store="">Tous les magasins</a></li>
             <li><hr class="dropdown-divider"></li>
             {% for s in stores %}
@@ -82,25 +128,41 @@
             {% endfor %}
           </ul>
         </div>
-      </div>
-    </div>
 
-    <div class="col-12 d-flex gap-2">
-      <button class="btn btn-primary">Appliquer</button>
-      <a href="{% url 'ui:home' %}" class="btn btn-outline-secondary">Réinitialiser</a>
+        <div class="ms-auto d-flex gap-2 mt-2 mt-md-0">
+          <button class="btn btn-primary" type="submit">Appliquer</button>
+          <a href="{% url 'ui:home' %}" class="btn btn-outline-secondary">Réinitialiser</a>
+        </div>
+      </div>
     </div>
   </div>
 </form>
 
-<!-- KPI globaux -->
+<!-- KPI globaux (compacts) -->
 <div class="metrics-grid mb-3">
-  <div class="metric-card"><div class="icon blue"><i class="bi bi-collection"></i></div><div class="value">{{ kpis.total }}</div><div class="label">Comparatifs</div></div>
-  <div class="metric-card"><div class="icon green"><i class="bi bi-check2-circle"></i></div><div class="value">{{ kpis.success }}</div><div class="label">Succès</div></div>
-  <div class="metric-card"><div class="icon pink"><i class="bi bi-x-circle"></i></div><div class="value">{{ kpis.failed }}</div><div class="label">Échecs</div></div>
-  <div class="metric-card"><div class="icon orange"><i class="bi bi-graph-up-arrow"></i></div><div class="value">{{ kpis.diffs }}</div><div class="label">Écarts cumulés</div></div>
+  <div class="metric-card ac-blue">
+    <div class="icon blue"><i class="bi bi-collection"></i></div>
+    <div class="value">{{ kpis.total }}</div>
+    <div class="label">Comparatifs</div>
+  </div>
+  <div class="metric-card ac-green">
+    <div class="icon green"><i class="bi bi-check2-circle"></i></div>
+    <div class="value">{{ kpis.success }}</div>
+    <div class="label">Succès</div>
+  </div>
+  <div class="metric-card ac-pink">
+    <div class="icon pink"><i class="bi bi-x-circle"></i></div>
+    <div class="value">{{ kpis.failed }}</div>
+    <div class="label">Échecs</div>
+  </div>
+  <div class="metric-card ac-orange">
+    <div class="icon orange"><i class="bi bi-graph-up-arrow"></i></div>
+    <div class="value">{{ kpis.diffs }}</div>
+    <div class="label">Écarts cumulés</div>
+  </div>
 </div>
 
-<!-- Catégories (carrousel) -->
+<!-- Carrousel catégories -->
 <div class="carousel-shell mb-3">
   <button type="button" class="carousel-nav carousel-prev" id="catPrev" aria-label="Précédent"><i class="bi bi-chevron-left"></i></button>
   <div class="carousel-wrap" id="catWrap">
@@ -114,21 +176,30 @@
               Voir
             </a>
           </div>
+
           <div class="mt-2 mini-muted small d-flex gap-3 flex-wrap">
             <span>Runs: <strong>{{ c.runs }}</strong></span>
             <span>Succès: <strong>{{ c.success }}</strong></span>
             <span>Échecs: <strong>{{ c.failed }}</strong></span>
             <span>Écarts: <strong>{{ c.diffs }}</strong></span>
           </div>
-          <div class="mt-2">
-            {% if c.runs and not c.diffs %}
-              <span class="badge badge-status badge-success">Intégrité OK</span>
-              <span class="mini-muted small">({{ c.integrated_runs }} run(s) sans écart)</span>
-            {% elif c.runs %}
-              <span class="badge badge-status badge-failed">Écarts détectés</span>
-            {% else %}
-              <span class="badge badge-status badge-running">Aucune vérification</span>
-            {% endif %}
+
+          <!-- Créé par / Badge sur la même ligne -->
+          <div class="mt-2 d-flex justify-content-between align-items-center flex-wrap gap-2">
+            <div class="mini-muted small">
+              Créé par :
+              <strong>{% firstof c.created_by c.last_owner "—" %}</strong>
+            </div>
+            <div>
+              {% if c.runs and not c.diffs %}
+                <span class="badge badge-status badge-success">Intégrité OK</span>
+                <span class="mini-muted small">({{ c.integrated_runs }} run(s) sans écart)</span>
+              {% elif c.runs %}
+                <span class="badge badge-status badge-failed">Écarts détectés</span>
+              {% else %}
+                <span class="badge badge-status badge-running">Aucune vérification</span>
+              {% endif %}
+            </div>
           </div>
         </div>
       {% endfor %}
@@ -150,20 +221,29 @@
             Voir
           </a>
         </div>
+
         <div class="mt-2 mini-muted small d-flex gap-3 flex-wrap">
           <span>Runs: <strong>{{ s.runs }}</strong></span>
           <span>Succès: <strong>{{ s.success }}</strong></span>
           <span>Échecs: <strong>{{ s.failed }}</strong></span>
           <span>Écarts: <strong>{{ s.diffs }}</strong></span>
         </div>
-        <div class="mt-2">
-          {% if s.runs and not s.diffs %}
-            <span class="badge badge-status badge-success">Intégrité OK</span>
-          {% elif s.runs %}
-            <span class="badge badge-status badge-failed">Écarts détectés</span>
-          {% else %}
-            <span class="badge badge-status badge-running">Aucune vérification</span>
-          {% endif %}
+
+        <!-- Créé par / Badge sur la même ligne -->
+        <div class="mt-2 d-flex justify-content-between align-items-center flex-wrap gap-2">
+          <div class="mini-muted small">
+            Créé par :
+            <strong>{% firstof s.created_by s.last_owner "—" %}</strong>
+          </div>
+          <div>
+            {% if s.runs and not s.diffs %}
+              <span class="badge badge-status badge-success">Intégrité OK</span>
+            {% elif s.runs %}
+              <span class="badge badge-status badge-failed">Écarts détectés</span>
+            {% else %}
+              <span class="badge badge-status badge-running">Aucune vérification</span>
+            {% endif %}
+          </div>
         </div>
       </div>
     </div>
@@ -179,7 +259,7 @@
         <h6 class="mb-0 fw-bold"><i class="bi bi-graph-up me-2"></i>Tendance mensuelle</h6>
       </div>
       {% if has_line_data %}
-        <canvas id="lineChart" height="110"></canvas>
+        <canvas id="lineChart" height="96"></canvas>
       {% else %}
         <div class="empty-card"><i class="bi bi-graph-up"></i><div class="title">Aucune donnée</div><div class="hint">Lance des comparatifs pour voir l’évolution mensuelle.</div></div>
       {% endif %}
@@ -193,7 +273,7 @@
       </div>
       {% if has_donut_data %}
         <div class="position-relative" style="width:100%; max-width:520px;">
-          <canvas id="donutChart" height="140"></canvas>
+          <canvas id="donutChart" height="128"></canvas>
         </div>
       {% else %}
         <div class="empty-card"><i class="bi bi-pie-chart"></i><div class="title">Aucune donnée</div><div class="hint">Les statuts apparaîtront après tes premières vérifications.</div></div>
@@ -223,7 +303,11 @@
                 <div class="fw-semibold">{{ r.config.category.name }} — {{ r.config.name }} <span class="text-muted">(#{{ r.id }})</span></div>
                 <div class="small text-muted">{{ r.created_at|timesince }} ago</div>
               </div>
+
               <div class="mt-1 d-flex align-items-center gap-2 flex-wrap">
+                <!-- Créé par -->
+                <span class="mini-muted small me-2">Créé par : <strong>{{ r.config.owner.username }}</strong></span>
+
                 {% if r.status == "success" %}
                   <span class="badge badge-status badge-success">success</span>
                 {% elif r.status == "failed" %}
@@ -231,6 +315,7 @@
                 {% else %}
                   <span class="badge badge-status badge-running">{{ r.status }}</span>
                 {% endif %}
+
                 <span class="text-muted small">Écarts: <strong>{{ r.diff_rows }}</strong></span>
                 <a class="btn btn-soft btn-sm" href="{% url 'comparisons:results' r.id %}"><i class="bi bi-eye"></i> Détails</a>
                 {% if r.export_csv %}<a class="btn btn-soft btn-sm" href="{{ r.export_csv }}"><i class="bi bi-filetype-csv"></i> CSV</a>{% endif %}

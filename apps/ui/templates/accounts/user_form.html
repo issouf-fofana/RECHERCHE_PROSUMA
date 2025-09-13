@@ -4,34 +4,132 @@
 {% endblock %}
 
 {% block content %}
-<div class="card shadow-sm">
-  <div class="card-body">
-    <h5 class="card-title">
-      <i class="bi bi-person{% if mode == 'create' %}-plus{% else %}-gear{% endif %} me-2"></i>
-      {% if mode == 'create' %}Créer un utilisateur{% else %}Modifier l’utilisateur{% endif %}
-    </h5>
 
-    <form method="post" novalidate>
+<h3 class="page-title mb-3">
+  <span class="dot"><i class="bi bi-people"></i></span>
+  {% if mode == 'create' %}Créer un utilisateur{% else %}Modifier un utilisateur{% endif %}
+</h3>
+
+<style>
+  /* -------- Carte moderne avec barre d’accent à gauche -------- */
+  .card-modern{
+    background:#fff; border:1px solid #e9eef5; border-radius:18px; box-shadow:var(--ring);
+    position:relative; overflow:hidden;
+  }
+  .card-modern::before{
+    content:""; position:absolute; inset:-1px auto -1px -1px; width:8px;
+    background: linear-gradient(180deg,#3b82f6 0%, #1d4ed8 100%); border-radius:18px 0 0 18px;
+  }
+  .card-modern .card-header{
+    background:linear-gradient(180deg,#f7f9ff 0%, #ffffff 100%);
+    border-bottom:1px solid #edf1f7;
+  }
+  .hint{ color:#6b7280; }
+
+  /* -------- Harmoniser les champs même sans widget_tweaks -------- */
+  .modern-form input[type="text"],
+  .modern-form input[type="email"],
+  .modern-form input[type="password"],
+  .modern-form input[type="number"],
+  .modern-form input[type="url"],
+  .modern-form input[type="tel"],
+  .modern-form select,
+  .modern-form textarea{
+    border:1px solid #e5e7eb; border-radius:12px; padding:.6rem .75rem;
+    width:100%; outline: none; background:#fff;
+  }
+  .modern-form input:focus,
+  .modern-form select:focus,
+  .modern-form textarea:focus{
+    border-color:#93c5fd; box-shadow:0 0 0 3px rgba(59,130,246,.15);
+  }
+
+  /* Checkbox en switch propre */
+  .form-switch .form-check-input{
+    width:2.6em; height:1.3em;
+  }
+
+  /* Erreurs par champ */
+  .field-errors{ color:#b42318; font-size:.9rem; margin-top:.35rem; }
+
+  /* Petits boutons doux */
+  .btn-soft{
+    border-radius:12px; border:1px solid #e5e7eb; background:#fff; color:#111827;
+    padding:.35rem .6rem; font-weight:600;
+  }
+  .btn-soft:hover{ background:#f9fafb; }
+</style>
+
+<div class="card-modern">
+  <div class="card-header px-3 px-md-4 py-3">
+    <div class="d-flex align-items-center gap-2">
+      <span class="badge rounded-pill text-bg-primary">
+        <i class="bi bi-person{% if mode == 'create' %}-plus{% else %}-gear{% endif %}"></i>
+      </span>
+      <div>
+        <div class="fw-bold">
+          {% if mode == 'create' %}Nouveau compte{% else %}Modifier l’utilisateur{% endif %}
+        </div>
+        <div class="hint">Renseigne les informations ci-dessous puis enregistre.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card-body p-3 p-md-4">
+    {% if form.non_field_errors %}
+      <div class="alert alert-danger mb-3">
+        {% for e in form.non_field_errors %}{{ e }}<br>{% endfor %}
+      </div>
+    {% endif %}
+
+    <form method="post" novalidate class="modern-form js-autoclass">
       {% csrf_token %}
-
-      {% if form.non_field_errors %}
-        <div class="alert alert-danger mb-3">{{ form.non_field_errors }}</div>
-      {% endif %}
 
       <div class="row g-3">
         {% for field in form %}
-          <div class="col-md-6">
-            <label class="form-label" for="{{ field.id_for_label }}">
-              {{ field.label }}{% if field.field.required %}*{% endif %}
-            </label>
-            {{ field }}
-            {% if field.help_text %}<div class="form-text">{{ field.help_text|safe }}</div>{% endif %}
-            {% for err in field.errors %}<div class="invalid-feedback d-block">{{ err }}</div>{% endfor %}
-          </div>
+          {% if field.field.widget.input_type == 'checkbox' %}
+            <!-- Rendu spécial pour les cases à cocher (ex: is_staff) -->
+            <div class="col-12 col-md-6 col-xl-4 d-flex align-items-end">
+              <div class="form-check form-switch">
+                {{ field }}
+                <label class="form-check-label ms-1" for="{{ field.id_for_label }}">
+                  {{ field.label }}{% if field.field.required %}*{% endif %}
+                </label>
+              </div>
+              {% if field.help_text %}
+                <div class="form-text ms-3">{{ field.help_text|safe }}</div>
+              {% endif %}
+              {% if field.errors %}
+                <div class="field-errors ms-3">{% for err in field.errors %}{{ err }}{% endfor %}</div>
+              {% endif %}
+            </div>
+          {% else %}
+            <!-- Champs texte / email / mot de passe / select -->
+            <div class="col-12 col-md-6 col-xl-4">
+              <label class="form-label" for="{{ field.id_for_label }}">
+                {{ field.label }}{% if field.field.required %}*{% endif %}
+              </label>
+              <div class="position-relative">
+                {{ field }}
+                {% if field.field.widget.input_type == 'password' %}
+                  <button type="button"
+                          class="btn btn-sm btn-soft position-absolute top-50 end-0 translate-middle-y me-1"
+                          data-toggle="pw" data-target="{{ field.id_for_label }}"
+                          title="Afficher/Masquer">
+                    <i class="bi bi-eye"></i>
+                  </button>
+                {% endif %}
+              </div>
+              {% if field.help_text %}<div class="form-text">{{ field.help_text|safe }}</div>{% endif %}
+              {% if field.errors %}
+                <div class="field-errors">{% for err in field.errors %}{{ err }}{% endfor %}</div>
+              {% endif %}
+            </div>
+          {% endif %}
         {% endfor %}
       </div>
 
-      <div class="mt-3 d-flex gap-2">
+      <div class="d-flex gap-2 mt-3">
         <button class="btn btn-primary" type="submit">
           {% if mode == 'create' %}
             <i class="bi bi-check2-circle me-1"></i> Créer
@@ -45,20 +143,34 @@
   </div>
 </div>
 
-<!-- Petit helper pour Bootsrap-ifier sans filtre add_class -->
+<!-- Helpers : 1) classes Bootstrap auto    2) is-invalid si erreurs   3) toggle mots de passe -->
 <script>
-  (function () {
-    document.querySelectorAll(
-      'input:not([type=checkbox]):not([type=radio]), select, textarea'
-    ).forEach(el => el.classList.add('form-control'));
+  document.addEventListener('DOMContentLoaded', () => {
+    // (1) Ajouter classes bootstrap si absentes
+    document.querySelectorAll('form.js-autoclass input:not([type=checkbox]):not([type=radio]), form.js-autoclass select, form.js-autoclass textarea')
+      .forEach(el => el.classList.add('form-control'));
+    document.querySelectorAll('form.js-autoclass input[type=checkbox]').forEach(el => el.classList.add('form-check-input'));
 
-    document.querySelectorAll('input[type=checkbox]').forEach(el => {
-      el.classList.add('form-check-input');
-      const wrapper = el.closest('.col-md-6');
-      if (wrapper && !wrapper.classList.contains('form-check')) {
-        wrapper.classList.add('form-check');
-      }
+    // (2) Marquer les champs en erreur
+    document.querySelectorAll('.field-errors').forEach(errBox => {
+      const wrap = errBox.closest('.col-12, .col-md-6, .col-xl-4') || errBox.parentElement;
+      if (!wrap) return;
+      const input = wrap.querySelector('.form-control');
+      if (input) input.classList.add('is-invalid');
     });
-  })();
+
+    // (3) Afficher / masquer les mots de passe
+    document.querySelectorAll('[data-toggle="pw"]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const id = btn.getAttribute('data-target');
+        const input = document.getElementById(id);
+        if (!input) return;
+        input.type = (input.type === 'password') ? 'text' : 'password';
+        const icon = btn.querySelector('i');
+        if (icon) { icon.classList.toggle('bi-eye'); icon.classList.toggle('bi-eye-slash'); }
+      });
+    });
+  });
 </script>
+
 {% endblock %}
