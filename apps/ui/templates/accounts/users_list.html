@@ -2,69 +2,233 @@
 {% block title %}Utilisateurs{% endblock %}
 
 {% block content %}
+
 <h3 class="page-title mb-3">
   <span class="dot"><i class="bi bi-people"></i></span>
   Utilisateurs
 </h3>
 
-<div class="d-flex justify-content-between align-items-center mb-3">
-  <div class="text-muted">Total : <strong>{{ users|length }}</strong></div>
-  <a href="{% url 'accounts:user_create' %}" class="btn btn-primary">
-    <i class="bi bi-person-plus me-1"></i> Nouvel utilisateur
-  </a>
+<style>
+  :root{
+    --ink:#0f172a; --muted:#6b7280; --line:#e5e7eb;
+    --card:#ffffff; --soft:#f8fafc; --ring:0 10px 26px rgba(2,6,23,.06);
+  }
+  .page-title{display:flex;align-items:center;gap:.6rem;font-weight:800;color:var(--ink)}
+  .page-title .dot{display:grid;place-items:center;width:36px;height:36px;border-radius:12px;background:#e0ecff;color:#1e40af}
+
+  /* KPI mini-cards */
+  .metrics-grid{display:grid;gap:12px;grid-template-columns:repeat(12,1fr);margin-bottom:.75rem}
+  .metric-card{
+    grid-column:span 3;background:var(--card);border:1px solid #e9eef5;border-radius:18px;
+    box-shadow:var(--ring);padding:14px 16px;position:relative;overflow:hidden;min-height:92px;
+  }
+  .metric-card .icon{width:38px;height:38px;border-radius:12px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:18px;margin-bottom:6px}
+  .icon.blue{background:linear-gradient(135deg,#3b82f6,#2563eb)}
+  .icon.green{background:linear-gradient(135deg,#16a34a,#22c55e)}
+  .icon.pink{background:linear-gradient(135deg,#db2777,#f43f5e)}
+  .metric-card .value{font-weight:800;font-size:1.6rem;line-height:1}
+  .metric-card .label{color:var(--muted);font-size:.92rem;margin-top:4px}
+
+  /* Top actions / filters */
+  .toolbar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;margin-bottom:.5rem}
+  .toolbar .right{display:flex;gap:8px;align-items:center}
+  .btn-soft{
+    border-radius:12px;border:1px solid #e6e8ee;background:#fff;color:#111827;
+    padding:.42rem .7rem;font-weight:600;
+  }
+  .btn-soft:hover{background:#f6f8fc}
+
+  /* Table */
+  .table-wrap{background:var(--card);border:1px solid #e9eef5;border-radius:16px;box-shadow:var(--ring);overflow:hidden}
+  .table-modern thead th{
+    position:sticky;top:0;z-index:2;background:#f3f6ff!important;color:#0b1b46;
+    font-weight:800;border-bottom:0;white-space:nowrap;
+  }
+  .table-modern tbody tr{border-top:1px solid #f0f2f6}
+  .table-modern tbody tr:hover{background:#fbfdff}
+  .badge-chip{border-radius:999px;font-weight:700;padding:.25rem .55rem}
+  .chip-admin{background:#e9f1ff;color:#17479e;border:1px solid #cfe1ff}
+  .chip-user{ background:#eef2f7;color:#334155;border:1px solid #e5e7eb}
+  .chip-on{   background:#ecfdf5;color:#047857;border:1px solid #bbf7d0}
+  .chip-off{  background:#fef2f2;color:#b91c1c;border:1px solid #fecaca}
+
+  /* Filters row under toolbar */
+  .filters-bar{
+    background:var(--card);border:1px solid #e9eef5;border-radius:12px;padding:10px 12px;box-shadow:var(--ring);margin-bottom:.75rem;
+    display:flex;gap:10px;flex-wrap:wrap;align-items:center
+  }
+  .filters-bar .form-control, .filters-bar .form-select{border-radius:12px}
+</style>
+
+{# ====== KPI ====== #}
+<div class="metrics-grid">
+  <div class="metric-card">
+    <div class="icon blue"><i class="bi bi-people"></i></div>
+    <div class="value" id="kpiTotal">{{ users|length }}</div>
+    <div class="label">Utilisateurs</div>
+  </div>
+  <div class="metric-card">
+    <div class="icon green"><i class="bi bi-person-check"></i></div>
+    <div class="value" id="kpiActive">—</div>
+    <div class="label">Actifs</div>
+  </div>
+  <div class="metric-card">
+    <div class="icon pink"><i class="bi bi-shield-lock"></i></div>
+    <div class="value" id="kpiAdmins">—</div>
+    <div class="label">Administrateurs</div>
+  </div>
+  <div class="metric-card">
+    <div class="icon blue"><i class="bi bi-person-badge"></i></div>
+    <div class="value" id="kpiUsers">—</div>
+    <div class="label">Rôles “User”</div>
+  </div>
 </div>
 
-<div class="table-responsive">
-  <table class="table table-modern align-middle">
-    <thead>
-      <tr>
-        <th>Username</th>
-        <th>Email</th>
-        <th>Rôle</th>
-        <th>Actif</th>
-        <th>Inscription</th>
-        <th>Dernière connexion</th>
-        <th class="text-end">Actions</th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for u in users %}
-      <tr>
-        <td>{{ u.username }}</td>
-        <td>{{ u.email|default:"—" }}</td>
-        <td>
-          {% if u.is_staff %}
-            <span class="badge bg-primary-subtle text-primary">Admin</span>
-          {% else %}
-            <span class="badge bg-secondary-subtle text-secondary">User</span>
-          {% endif %}
-        </td>
-        <td>
-          {% if u.is_active %}
-            <span class="badge bg-success-subtle text-success">Actif</span>
-          {% else %}
-            <span class="badge bg-danger-subtle text-danger">Inactif</span>
-          {% endif %}
-        </td>
-        <td>{{ u.date_joined|date:"Y-m-d H:i" }}</td>
-        <td>{{ u.last_login|date:"Y-m-d H:i"|default:"—" }}</td>
-        <td class="text-end">
-          <a href="{% url 'accounts:user_edit' u.id %}" class="btn btn-soft btn-sm">
-            <i class="bi bi-pencil-square"></i>
-          </a>
-          <a href="{% url 'accounts:user_toggle_active' u.id %}" class="btn btn-soft btn-sm">
-  {% if u.is_active %}
-    <i class="bi bi-person-dash text-danger" title="Désactiver"></i>
-  {% else %}
-    <i class="bi bi-person-check text-success" title="Activer"></i>
-  {% endif %}
-</a>
-        </td>
-      </tr>
-      {% empty %}
-      <tr><td colspan="7" class="text-muted text-center py-4">Aucun utilisateur.</td></tr>
-      {% endfor %}
-    </tbody>
-  </table>
+{# ====== Actions / création ====== #}
+<div class="toolbar">
+  <div class="text-muted">Total listé : <strong id="countListed">{{ users|length }}</strong></div>
+  <div class="right">
+    <a href="{% url 'accounts:user_create' %}" class="btn btn-primary">
+      <i class="bi bi-person-plus me-1"></i> Nouvel utilisateur
+    </a>
+  </div>
 </div>
+
+{# ====== Filtres côté client ====== #}
+<div class="filters-bar">
+  <div class="input-group" style="max-width:320px">
+    <span class="input-group-text bg-white border-end-0" style="border-radius:12px 0 0 12px"><i class="bi bi-search"></i></span>
+    <input type="search" class="form-control border-start-0" id="q" placeholder="Rechercher (username, email)…">
+  </div>
+  <select class="form-select" id="role" style="max-width:180px">
+    <option value="">Rôle — Tous</option>
+    <option value="admin">Admin</option>
+    <option value="user">User</option>
+  </select>
+  <select class="form-select" id="status" style="max-width:190px">
+    <option value="">Statut — Tous</option>
+    <option value="on">Actifs</option>
+    <option value="off">Inactifs</option>
+  </select>
+  <button class="btn btn-soft" id="resetFilters"><i class="bi bi-arrow-clockwise"></i> Réinitialiser</button>
+</div>
+
+{# ====== Tableau ====== #}
+<div class="table-wrap">
+  <div class="table-responsive">
+    <table class="table table-modern align-middle mb-0" id="usersTable">
+      <thead>
+        <tr>
+          <th>Username</th>
+          <th>Email</th>
+          <th>Rôle</th>
+          <th>Actif</th>
+          <th>Inscription</th>
+          <th>Dernière connexion</th>
+          <th class="text-end">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for u in users %}
+        <tr
+          data-name="{{ u.username|lower }}"
+          data-email="{{ u.email|default:''|lower }}"
+          data-role="{% if u.is_staff %}admin{% else %}user{% endif %}"
+          data-active="{% if u.is_active %}1{% else %}0{% endif %}"
+          class="js-row"
+        >
+          <td class="fw-semibold">{{ u.username }}</td>
+          <td>{{ u.email|default:"—" }}</td>
+          <td>
+            {% if u.is_staff %}
+              <span class="badge-chip chip-admin">Admin</span>
+            {% else %}
+              <span class="badge-chip chip-user">User</span>
+            {% endif %}
+          </td>
+          <td>
+            {% if u.is_active %}
+              <span class="badge-chip chip-on">Actif</span>
+            {% else %}
+              <span class="badge-chip chip-off">Inactif</span>
+            {% endif %}
+          </td>
+          <td>{{ u.date_joined|date:"Y-m-d H:i" }}</td>
+          <td>{{ u.last_login|date:"Y-m-d H:i"|default:"—" }}</td>
+          <td class="text-end text-nowrap">
+            <a href="{% url 'accounts:user_edit' u.id %}" class="btn btn-soft btn-sm" title="Modifier">
+              <i class="bi bi-pencil-square"></i>
+            </a>
+            <a href="{% url 'accounts:user_toggle_active' u.id %}" class="btn btn-soft btn-sm" title="{% if u.is_active %}Désactiver{% else %}Activer{% endif %}">
+              {% if u.is_active %}
+                <i class="bi bi-person-dash text-danger"></i>
+              {% else %}
+                <i class="bi bi-person-check text-success"></i>
+              {% endif %}
+            </a>
+          </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="7" class="text-muted text-center py-4">Aucun utilisateur.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<script>
+(function(){
+  const rows = Array.from(document.querySelectorAll('.js-row'));
+  const q = document.getElementById('q');
+  const role = document.getElementById('role');
+  const status = document.getElementById('status');
+  const reset = document.getElementById('resetFilters');
+  const countListed = document.getElementById('countListed');
+
+  // KPIs (calculs côté client à partir du tableau)
+  function refreshKpis(){
+    const total = rows.length;
+    const active = rows.filter(r => r.dataset.active === '1').length;
+    const admins = rows.filter(r => r.dataset.role === 'admin').length;
+    const users  = rows.filter(r => r.dataset.role === 'user').length;
+    document.getElementById('kpiTotal').innerText = total;
+    document.getElementById('kpiActive').innerText = active;
+    document.getElementById('kpiAdmins').innerText = admins;
+    document.getElementById('kpiUsers').innerText  = users;
+  }
+
+  function applyFilters(){
+    const term = (q.value || '').trim().toLowerCase();
+    const fRole = role.value;
+    const fStatus = status.value;
+
+    let visible = 0;
+    rows.forEach(r=>{
+      const matchesQ = !term || r.dataset.name.includes(term) || r.dataset.email.includes(term);
+      const matchesRole = !fRole || r.dataset.role === fRole;
+      const matchesStatus = !fStatus ||
+        (fStatus === 'on'  && r.dataset.active === '1') ||
+        (fStatus === 'off' && r.dataset.active === '0');
+      const show = matchesQ && matchesRole && matchesStatus;
+      r.style.display = show ? '' : 'none';
+      if (show) visible++;
+    });
+    countListed.innerText = visible;
+  }
+
+  function resetFilters(){
+    q.value = '';
+    role.value = '';
+    status.value = '';
+    applyFilters();
+  }
+
+  [q, role, status].forEach(el => el && el.addEventListener('input', applyFilters));
+  reset?.addEventListener('click', (e)=>{ e.preventDefault(); resetFilters(); });
+
+  refreshKpis();
+  applyFilters();
+})();
+</script>
+
 {% endblock %}

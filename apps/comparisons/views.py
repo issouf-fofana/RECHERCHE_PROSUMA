@@ -1,11 +1,11 @@
 # apps/comparisons/views.py
 from __future__ import annotations
 
+import os
 import re
 import uuid
 from pathlib import Path
-from datetime import timedelta
-from collections import defaultdict
+from io import BytesIO
 
 import pandas as pd
 from pandas.api.types import is_categorical_dtype, is_datetime64_any_dtype
@@ -18,25 +18,26 @@ from django.db.models import Sum, Q
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.utils.dateparse import parse_date
+from django.core.files.storage import default_storage
 
 from .exporters import to_csv, to_xlsx
 from .models import CompareResult, CompareRun
 from .services import compute_diff
 from apps.configs.models import CompareConfig
 from apps.datasets.models import Dataset
-from apps.datasets.services import sniff_sep_and_encoding
-from io import BytesIO
-from django.core.files.storage import default_storage
 
+# on réutilise juste la détection de séparateur provenant des services datasets
+from apps.datasets.services import sniff_sep
 
 User = get_user_model()
 
-# ---------------------------------------------------------------------
+# =====================================================================
 # Utilitaires
-# ---------------------------------------------------------------------
+# =====================================================================
 
-# Caractères interdits par Excel (openpyxl/XML)
-_ILLEGAL_XLSX_RE = re.compile(r'[\x00-\x08\x0B\x0C\x0E-\x1F]')
+_ILLEGAL_XLSX_RE = re.compile(r"[\x00-\x08\x0B\x0C\x0E-\x1F]")
+_ENCODING_CANDIDATES = ["utf-8-sig", "utf-8", "cp1252", "latin1", "mac_roman"]
+
 
 def _sanitize_for_export(df: pd.DataFrame) -> pd.DataFrame:
     """Prépare un DataFrame pour export Excel/CSV."""
@@ -51,22 +52,75 @@ def _sanitize_for_export(df: pd.DataFrame) -> pd.DataFrame:
         safe[col] = safe[col].str.replace(_ILLEGAL_XLSX_RE, "", regex=True)
     return safe
 
-def _display_name(user) -> str | None:
-    """Retourne 'Prénom Nom' si dispo, sinon username, sinon None."""
-    if not user:
-        return None
-    full = (getattr(user, "get_full_name", lambda: "")() or "").strip()
-    return full or getattr(user, "username", None)
 
-# ---------------------------------------------------------------------
-# Création d'un run depuis la session (toujours limité au propriétaire)
-# ---------------------------------------------------------------------
+# =====================================================================
+# Lecture Dataset robuste (CSV / Excel) avec ligne d'entêtes paramétrable
+# =====================================================================
+
+def _read_csv_robust(raw: bytes, *, header: int | None = 0) -> pd.DataFrame:
+    """Tentatives multi-encodages + sniff du séparateur."""
+    sep = sniff_sep(BytesIO(raw))
+    last_err: Exception | None = None
+    for enc in _ENCODING_CANDIDATES:
+        try:
+            return pd.read_csv(
+                BytesIO(raw),
+                dtype=str,
+                sep=sep,
+                encoding=enc,
+                engine="python",
+                header=header,
+            )
+        except UnicodeDecodeError as e:
+            last_err = e
+            continue
+        except Exception:
+            # Erreur parser non liée à l'encodage -> on propage
+            raise
+    raise UnicodeDecodeError(
+        "encoding-detect", b"", 0, 1,
+        f"Impossible de décoder le CSV. Dernière erreur: {last_err}"
+    )
+
+
+def _read_dataset_dataframe(ds, *, header_row: int | None = 0):
+    """
+    Ouvre le fichier d'un Dataset via son storage et renvoie (df, error).
+    Supporte CSV, XLS, XLSX. 'error' vaut 'missing' si absent.
+    """
+    if not ds or not getattr(ds, "file", None):
+        return None, "missing"
+
+    storage = getattr(ds.file, "storage", default_storage)
+    name = getattr(ds.file, "name", None)
+    if not name or not storage.exists(name):
+        return None, "missing"
+
+    with storage.open(name, "rb") as fh:
+        raw = fh.read()
+
+    ext = os.path.splitext(name)[1].lower()
+    if ext == ".csv":
+        df = _read_csv_robust(raw, header=header_row)
+    elif ext in (".xlsx", ".xls"):
+        df = pd.read_excel(BytesIO(raw), dtype=str, sheet_name=0, header=header_row)
+    else:
+        raise ValueError(f"Extension non prise en charge pour la comparaison: {ext}")
+
+    # Normalise tous les noms de colonnes en str pour cohérence UI
+    df.columns = [str(c) for c in df.columns]
+    return df, None
+
+
+# =====================================================================
+# Lancer une comparaison depuis la session (datasets + config)
+# =====================================================================
 
 @login_required
 def run_with_session(request):
     """
     Lance une comparaison à partir du contexte de session.
-    Création d'un run pour l'utilisateur courant uniquement.
+    Respecte la ligne d'entêtes sélectionnée sur l'écran de config.
     """
     ctx = request.session.get("upload_context")
     cfg_id = request.session.get("config_id")
@@ -78,22 +132,18 @@ def run_with_session(request):
     ds1 = get_object_or_404(Dataset, id=ctx["dataset_web1_id"], owner=request.user)
     ds2 = get_object_or_404(Dataset, id=ctx["dataset_desktop_id"], owner=request.user)
 
-    # Lecture robuste CSV 1
-    try:
-        with open(ds1.file.path, "rb") as f1:
-            sep1, enc1 = sniff_sep_and_encoding(f1)
-        df1 = pd.read_csv(ds1.file.path, dtype=str, sep=sep1, encoding=enc1, engine="python")
-    except Exception as e:
-        messages.error(request, f"Erreur lecture CSV (Web1) : {e}")
-        return redirect("datasets:upload")
+    # Récupère la ligne d'entêtes choisie (0-based). Défaut: 0 (= ligne 1 pour l'utilisateur).
+    header_rows = (ctx.get("header_rows") or {"web1": 0, "desktop": 0})
+    h1 = int(header_rows.get("web1", 0))
+    h2 = int(header_rows.get("desktop", 0))
 
-    # Lecture robuste CSV 2
     try:
-        with open(ds2.file.path, "rb") as f2:
-            sep2, enc2 = sniff_sep_and_encoding(f2)
-        df2 = pd.read_csv(ds2.file.path, dtype=str, sep=sep2, encoding=enc2, engine="python")
+        df1, err1 = _read_dataset_dataframe(ds1, header_row=h1)
+        df2, err2 = _read_dataset_dataframe(ds2, header_row=h2)
+        if err1 == "missing" or err2 == "missing":
+            raise FileNotFoundError("Fichier source introuvable.")
     except Exception as e:
-        messages.error(request, f"Erreur lecture CSV (Desktop) : {e}")
+        messages.error(request, f"Erreur lecture fichier : {e}")
         return redirect("datasets:upload")
 
     run = CompareRun.objects.create(
@@ -106,7 +156,7 @@ def run_with_session(request):
     try:
         diff = compute_diff(df1, df2, cfg)
 
-        # Normaliser types
+        # Normalisation types pour export/UI
         for col in diff.columns:
             s = diff[col]
             if is_categorical_dtype(s.dtype) or is_datetime64_any_dtype(s.dtype):
@@ -122,21 +172,26 @@ def run_with_session(request):
         payload = diff.head(10000).to_dict(orient="records")
         CompareResult.objects.create(run=run, payload=payload)
 
-        # Exports
+        # Exports — nom lisible: CATEGORIE_METHODE  (ex: COMMANDE_LEFT)
         export_df = _sanitize_for_export(diff)
         out_dir: Path = Path(settings.MEDIA_ROOT) / "exports"
         out_dir.mkdir(parents=True, exist_ok=True)
-        base = f"diff_{run.id}_{uuid.uuid4().hex}"
-        csv_path = out_dir / f"{base}.csv"
-        xlsx_path = out_dir / f"{base}.xlsx"
+
+        cat = (getattr(cfg.category, "name", "") or "ECART").upper().replace(" ", "_")
+        method = (cfg.join_type or "OUTER").upper()
+        friendly = f"{cat}_{method}"
+        uniq = uuid.uuid4().hex[:8]
+        base_fs = f"{friendly}_{run.id}_{uniq}"
+
+        csv_path = out_dir / f"{base_fs}.csv"
+        xlsx_path = out_dir / f"{base_fs}.xlsx"
 
         to_csv(export_df, csv_path)
         to_xlsx(export_df, xlsx_path)
 
-        url_csv = f"{settings.MEDIA_URL}exports/{base}.csv"
-        url_xlsx = f"{settings.MEDIA_URL}exports/{base}.xlsx"
+        url_csv = f"{settings.MEDIA_URL}exports/{csv_path.name}"
+        url_xlsx = f"{settings.MEDIA_URL}exports/{xlsx_path.name}"
 
-        # session + persistance
         request.session["last_export"] = {"csv": url_csv, "xlsx": url_xlsx}
         run.export_csv = url_csv
         run.export_xlsx = url_xlsx
@@ -152,18 +207,13 @@ def run_with_session(request):
 
     return redirect("comparisons:results", run_id=run.id)
 
-# ---------------------------------------------------------------------
-# Affichage des résultats d'un run
-#   - Admin : accès à tous
-#   - Non-admin : accès seulement à ses propres runs
-# ---------------------------------------------------------------------
+
+# =====================================================================
+# Résultats
+# =====================================================================
 
 @login_required
 def results(request, run_id):
-    """
-    - Admin : accès global
-    - Non-admin : accès limité à ses runs
-    """
     if request.user.is_staff:
         run = get_object_or_404(CompareRun, id=run_id)
     else:
@@ -189,12 +239,123 @@ def results(request, run_id):
     })
 
 
+# =====================================================================
+# Aides / page synthèse
+# =====================================================================
+
+def _guess_col(columns, patterns):
+    cols = [c for c in columns]
+    low  = [c.lower() for c in columns]
+    for p in patterns:
+        p = p.lower()
+        for i, name in enumerate(low):
+            if p in name:
+                return cols[i]
+    return None
+
+
+def _fmt_date_col(series):
+    s = series.fillna("").astype(str).str.strip()
+    try:
+        s2 = pd.to_datetime(s, errors="coerce", dayfirst=True)
+        s2 = s2.dt.strftime("%d/%m/%Y")
+        s2 = s2.fillna(s)
+        return s2
+    except Exception:
+        return s
+
+
+def _group_count(df, by_col, title_fmt=None):
+    s = df[by_col].fillna("").astype(str).stripped = df[by_col].fillna("").astype(str).str.strip()
+    grp = s.value_counts(dropna=False).reset_index()
+    grp.columns = ["label", "count"]
+    grp["label"] = grp["label"].replace({"": "(vide)"})
+    rows = list(grp.itertuples(index=False, name=None))
+    total = int(grp["count"].sum()) if not grp.empty else 0
+    if title_fmt:
+        rows = [(title_fmt(lbl), cnt) for (lbl, cnt) in rows]
+    return rows, total
+
+
+# =====================================================================
+# Synthèse par colonnes clés (lecture source)
+# =====================================================================
+
+@login_required
+def summary_orders(request, run_id):
+    if request.user.is_staff:
+        run = get_object_or_404(CompareRun, id=run_id)
+    else:
+        run = get_object_or_404(CompareRun, id=run_id, config__owner=request.user)
+
+    # Essaie d'utiliser la même ligne d'entêtes que lors du run (via session si dispo)
+    ctx = request.session.get("upload_context") or {}
+    header_rows = ctx.get("header_rows") or {}
+    h_web1 = int(header_rows.get("web1", 0))
+    h_desk = int(header_rows.get("desktop", 0))
+
+    # On tente d'abord le dataset Web1, puis Desktop en fallback
+    primary = run.dataset_web1 or run.dataset_desktop
+    h_primary = h_web1 if primary is run.dataset_web1 else h_desk
+    df, err = _read_dataset_dataframe(primary, header_row=h_primary)
+
+    if err == "missing" and run.dataset_desktop and primary is not run.dataset_desktop:
+        h_alt = h_desk if primary is run.dataset_web1 else h_web1
+        df, err = _read_dataset_dataframe(run.dataset_desktop, header_row=h_alt)
+
+    if err == "missing" or df is None:
+        messages.error(
+            request,
+            "Le fichier source de ce comparatif n'existe plus sur le disque. "
+            "Réimportez les fichiers et relancez le comparatif."
+        )
+        return redirect("comparisons:results", run_id=run.id)
+
+    columns = list(df.columns)
+
+    guess_date_cmd = _guess_col(columns, ["date commande", "date_commande", "date cmd", "créé le", "date creation", "date"])
+    guess_date_liv = _guess_col(columns, ["date livraison", "date livr", "livraison", "deliv"])
+    guess_store    = _guess_col(columns, ["magasin", "nommagasin", "nommag", "store", "site", "ncde"])
+
+    date_cmd_col = request.GET.get("date_cmd") or guess_date_cmd
+    date_liv_col = request.GET.get("date_liv") or guess_date_liv
+    store_col    = request.GET.get("store")    or guess_store
+
+    sections = []
+    if date_cmd_col and date_cmd_col in df.columns:
+        tmp = df.copy()
+        tmp["_period"] = _fmt_date_col(tmp[date_cmd_col])
+        rows, total = _group_count(tmp, "_period")
+        sections.append({"title": "PÉRIODE", "rows": rows, "total": total, "right": "NOMBRE COMMANDE"})
+
+    if store_col and store_col in df.columns:
+        rows, total = _group_count(df, store_col)
+        sections.append({"title": "MAGASIN", "rows": rows, "total": total, "right": "NOMBRE  COMMANDE"})
+
+    if date_liv_col and date_liv_col in df.columns:
+        tmp = df.copy()
+        tmp["_liv"] = _fmt_date_col(tmp[date_liv_col])
+        rows, total = _group_count(tmp, "_liv")
+        sections.append({"title": "DATE DE LIVRESON", "rows": rows, "total": total, "right": "NOMBRE COMMANDE"})
+
+    ctx = {
+        "run": run,
+        "columns": columns,
+        "date_cmd_col": date_cmd_col,
+        "date_liv_col": date_liv_col,
+        "store_col":    store_col,
+        "sections": sections,
+        "has_data": any(s["rows"] for s in sections),
+    }
+    return render(request, "comparisons/summary_orders.html", ctx)
+
+
+# =====================================================================
+# Dashboard & actions
+# =====================================================================
+
 @login_required
 def runs_dashboard(request):
-    """
-    - Admin : voit tous les runs
-    - Non-admin : ne voit que ses runs
-    """
     base_qs = (
         CompareRun.objects
         .select_related("config", "config__category", "config__owner",
@@ -206,7 +367,7 @@ def runs_dashboard(request):
     else:
         qs = base_qs.filter(config__owner=request.user)
 
-    # --- Filtres ---
+    # Filtres
     cat_param = request.GET.get("category")
     cfg_id    = request.GET.get("config")
     status    = request.GET.get("status")
@@ -219,9 +380,9 @@ def runs_dashboard(request):
         else:
             from apps.catalogs.models import ConfigCategory
             qs = qs.filter(config__category__name__iexact=cat_param)
-            sel_id = ConfigCategory.objects.filter(
-                name__iexact=cat_param
-            ).values_list("id", flat=True).first()
+            sel_id = (ConfigCategory.objects
+                      .filter(name__iexact=cat_param)
+                      .values_list("id", flat=True).first())
             selected_category = str(sel_id or "")
     else:
         selected_category = ""
@@ -236,7 +397,6 @@ def runs_dashboard(request):
             Q(dataset_desktop__store_code=store)
         )
 
-    # --- Stats ---
     stats = {
         "total":   qs.count(),
         "success": qs.filter(status="success").count(),
@@ -245,14 +405,12 @@ def runs_dashboard(request):
         "diffs":   qs.aggregate(total_diffs=Sum("diff_rows"))["total_diffs"] or 0,
     }
 
-    # --- Listes pour filtres ---
     from apps.catalogs.models import ConfigCategory
     from apps.configs.models import CompareConfig as Cfg
     categories = ConfigCategory.objects.all().order_by("name")
     configs = (Cfg.objects.all() if request.user.is_staff
                else Cfg.objects.filter(owner=request.user)).order_by("name")
 
-    # --- Magasins (depuis qs filtré) ---
     stores, seen = [], set()
     web1_pairs = qs.values_list("dataset_web1__store_code", "dataset_web1__store_name")
     desk_pairs = qs.values_list("dataset_desktop__store_code", "dataset_desktop__store_name")
@@ -285,8 +443,8 @@ def runs_dashboard(request):
             "store":    store or "",
         },
     })
-    
-    
+
+
 @login_required
 def latest_for_category(request):
     cat_id = request.GET.get("category")
@@ -316,7 +474,6 @@ def latest_for_category(request):
 
     qs = qs.order_by("-created_at")
 
-    # On privilégie un run "success" avec écarts
     run = qs.filter(status="success", diff_rows__gt=0).first() or qs.first()
     if run:
         return redirect("comparisons:results", run_id=run.id)
@@ -324,139 +481,13 @@ def latest_for_category(request):
     messages.info(request, "Aucun run trouvé pour les filtres sélectionnés.")
     return redirect("comparisons:runs_dashboard")
 
-# ---------------------------------------------------------------------
-# Page synthèse (lecture dataset) — admin autorisé sur tous les runs
-# ---------------------------------------------------------------------
 
-def _guess_col(columns, patterns):
-    cols = [c for c in columns]
-    low  = [c.lower() for c in columns]
-    for p in patterns:
-        p = p.lower()
-        for i, name in enumerate(low):
-            if p in name:
-                return cols[i]
-    return None
-
-def _fmt_date_col(series):
-    s = series.fillna("").astype(str).str.strip()
-    try:
-        s2 = pd.to_datetime(s, errors="coerce", dayfirst=True)
-        s2 = s2.dt.strftime("%d/%m/%Y")
-        s2 = s2.fillna(s)
-        return s2
-    except Exception:
-        return s
-
-def _group_count(df, by_col, title_fmt=None):
-    s = df[by_col].fillna("").astype(str).str.strip()
-    grp = s.value_counts(dropna=False).reset_index()
-    grp.columns = ["label", "count"]
-    grp["label"] = grp["label"].replace({"": "(vide)"})
-    rows = list(grp.itertuples(index=False, name=None))
-    total = int(grp["count"].sum()) if not grp.empty else 0
-    if title_fmt:
-        rows = [(title_fmt(lbl), cnt) for (lbl, cnt) in rows]
-    return rows, total
-
-@login_required
-def summary_orders(request, run_id):
-    """
-    Page synthèse pour un run.
-    - Admin : accès global
-    - Non-admin : accès limité à ses runs
-    Lecture robuste du CSV via le storage, avec fallback Web1 -> Desktop.
-    """
-    # Sécurité d'accès
-    if request.user.is_staff:
-        run = get_object_or_404(CompareRun, id=run_id)
-    else:
-        run = get_object_or_404(CompareRun, id=run_id, config__owner=request.user)
-
-    # On tente d'abord le dataset Web1, puis Desktop en fallback
-    primary = run.dataset_web1 or run.dataset_desktop
-    df, err = _read_dataset_dataframe(primary)
-
-    if err == "missing" and run.dataset_desktop and primary is not run.dataset_desktop:
-        df, err = _read_dataset_dataframe(run.dataset_desktop)
-
-    if err == "missing" or df is None:
-        messages.error(
-            request,
-            "Le fichier source de ce comparatif n'existe plus sur le disque. "
-            "Réimportez les CSV et relancez le comparatif."
-        )
-        return redirect("comparisons:results", run_id=run.id)
-
-    columns = list(df.columns)
-
-    # Auto-guess des colonnes
-    guess_date_cmd = _guess_col(columns, ["date commande", "date_commande", "date cmd", "créé le", "date creation", "date"])
-    guess_date_liv = _guess_col(columns, ["date livraison", "date livr", "livraison", "deliv"])
-    guess_store    = _guess_col(columns, ["magasin", "nommagasin", "nommag", "store", "site", "ncde"])
-
-    date_cmd_col = request.GET.get("date_cmd") or guess_date_cmd
-    date_liv_col = request.GET.get("date_liv") or guess_date_liv
-    store_col    = request.GET.get("store")    or guess_store
-
-    sections = []
-
-    # 1) PÉRIODE (par date commande)
-    if date_cmd_col and date_cmd_col in df.columns:
-        tmp = df.copy()
-        tmp["_period"] = _fmt_date_col(tmp[date_cmd_col])
-        rows, total = _group_count(tmp, "_period")
-        sections.append({
-            "title": "PÉRIODE",
-            "rows": rows,
-            "total": total,
-            "right": "NOMBRE COMMANDE",
-        })
-
-    # 2) MAGASIN
-    if store_col and store_col in df.columns:
-        rows, total = _group_count(df, store_col)
-        sections.append({
-            "title": "MAGASIN",
-            "rows": rows,
-            "total": total,
-            "right": "NOMBRE  COMMANDE",
-        })
-
-    # 3) DATE DE LIVRAISON
-    if date_liv_col and date_liv_col in df.columns:
-        tmp = df.copy()
-        tmp["_liv"] = _fmt_date_col(tmp[date_liv_col])
-        rows, total = _group_count(tmp, "_liv")
-        sections.append({
-            "title": "DATE DE LIVRESON",
-            "rows": rows,
-            "total": total,
-            "right": "NOMBRE COMMANDE",
-        })
-
-    ctx = {
-        "run": run,
-        "columns": columns,
-        "date_cmd_col": date_cmd_col,
-        "date_liv_col": date_liv_col,
-        "store_col":    store_col,
-        "sections": sections,
-        "has_data": any(s["rows"] for s in sections),
-    }
-    return render(request, "comparisons/summary_orders.html", ctx)
-
-
-# ---------------------------------------------------------------------
-# Edition / suppression (on laisse restreint au propriétaire)
-# ---------------------------------------------------------------------
+# =====================================================================
+# Edition / suppression
+# =====================================================================
 
 @login_required
 def run_edit(request, run_id):
-    """
-    - Admin : peut éditer n'importe quel run
-    - Non-admin : uniquement ses runs
-    """
     if request.user.is_staff:
         run = get_object_or_404(CompareRun, id=run_id)
     else:
@@ -470,12 +501,9 @@ def run_edit(request, run_id):
 
     return render(request, "comparisons/run_edit.html", {"run": run})
 
+
 @login_required
 def run_delete(request, run_id):
-    """
-    - Admin : peut supprimer n'importe quel run
-    - Non-admin : uniquement ses runs
-    """
     if request.user.is_staff:
         run = get_object_or_404(CompareRun, id=run_id)
     else:
@@ -487,16 +515,11 @@ def run_delete(request, run_id):
         messages.success(request, f"Comparatif #{rid} supprimé.")
         return redirect("comparisons:runs_dashboard")
 
-    # Fallback GET (confirmation simple)
     return render(request, "comparisons/run_confirm_delete.html", {"run": run})
+
 
 @login_required
 def run_bulk_delete(request):
-    """
-    Suppression multiple.
-    - Admin : global
-    - Non-admin : limité à ses runs
-    """
     if request.method != "POST":
         return redirect("comparisons:runs_dashboard")
 
@@ -513,27 +536,3 @@ def run_bulk_delete(request):
     qs.delete()
     messages.success(request, f"{count} comparatif(s) supprimé(s).")
     return redirect("comparisons:runs_dashboard")
-
-
-def _read_dataset_dataframe(ds):
-    """
-    Ouvre le fichier d'un Dataset via son storage et renvoie (df, error).
-    error vaut 'missing' si le fichier n'existe plus.
-    """
-    if not ds or not getattr(ds, "file", None):
-        return None, "missing"
-
-    storage = getattr(ds.file, "storage", default_storage)
-    name = getattr(ds.file, "name", None)
-
-    if not name or not storage.exists(name):
-        return None, "missing"
-
-    # Lecture binaire puis détection encodage/séparateur sur un buffer mémoire
-    with storage.open(name, "rb") as fh:
-        raw = fh.read()
-    buf = BytesIO(raw)
-
-    sep, enc = sniff_sep_and_encoding(BytesIO(raw))
-    df = pd.read_csv(buf, dtype=str, sep=sep, encoding=enc, engine="python")
-    return df, None

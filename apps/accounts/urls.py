@@ -18,4 +18,9 @@ urlpatterns = [
     path("users/<int:user_id>/activity/",  views.user_activity,     name="user_activity"),
     path("me/activity/",                   views.my_activity,       name="my_activity"),
     path("users/<int:user_id>/toggle-active/", views.user_toggle_active, name="user_toggle_active"),
+    # Utilisateur courant
+     # User-access
+    path("me/", views.profile, name="profile"),
+    path("me/password/", views.change_password, name="password_change"),
+    path("my-activity/", views.my_activity, name="my_activity"),
 ]

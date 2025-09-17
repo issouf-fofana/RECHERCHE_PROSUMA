@@ -1,11 +1,27 @@
 {% extends "base.html" %}
-{% block title %}Activité — {{ usr.username }}{% endblock %}
-{% block content %}
+{% block title %}Activité — {{ user_obj.username }}{% endblock %}
 
+{% block content %}
 <h3 class="page-title mb-3">
-  <span class="dot"><i class="bi bi-activity"></i></span>
-  Activité — {{ usr.username }}
+  <span class="dot"><i class="bi bi-person-lines-fill"></i></span>
+  Activité — {{ user_obj.username }}
 </h3>
+
+<div class="mb-2 text-muted">
+  Email : <strong>{{ user_obj.email|default:"—" }}</strong> •
+  Rôle : <strong>{% if user_obj.is_staff %}Admin{% else %}User{% endif %}</strong>
+</div>
+
+<style>
+  .table-wrap{background:#fff;border-radius:16px;box-shadow:var(--ring);overflow:hidden}
+  .table-modern thead th{background:#f3f6ff;color:#0b1b46;font-weight:700;border-bottom:0}
+  .btn-soft{border-radius:12px;border:1px solid #e5e7eb;background:#fff;color:#111827;padding:.35rem .6rem;font-weight:600}
+  .btn-soft:hover{background:#f9fafb}
+  .badge-status{font-weight:700;letter-spacing:.2px;border-radius:999px}
+  .badge-success{background:#e8fff3;color:#0a7a3d}
+  .badge-failed{background:#ffefef;color:#b42318}
+  .badge-running{background:#eef5ff;color:#1e40af}
+</style>
 
 <div class="table-wrap">
   <div class="table-responsive">
@@ -14,51 +30,45 @@
         <tr>
           <th>#</th>
           <th>Date</th>
-          <th>Magasin</th>
           <th>Catégorie</th>
           <th>Configuration</th>
           <th>Statut</th>
           <th>Écarts</th>
+          <th>Lignes</th>
           <th>Résultats</th>
         </tr>
       </thead>
       <tbody>
         {% for r in runs %}
-          <tr>
-            <td class="text-muted">#{{ r.id }}</td>
-            <td>{{ r.created_at|date:"Y-m-d H:i" }}</td>
-            <td>
-              {% with ds=r.dataset_web1|default:r.dataset_desktop %}
-                {% if ds and (ds.store_code or ds.store_name) %}
-                  {% if ds.store_code %}{{ ds.store_code }}{% else %}-{% endif %}
-                  {% if ds.store_name %} — {{ ds.store_name }}{% endif %}
-                {% else %}-{% endif %}
-              {% endwith %}
-            </td>
-            <td>{{ r.config.category.name }}</td>
-            <td class="fw-semibold">{{ r.config.name }}</td>
-            <td>
-              {% if r.status == "success" %}
-                <span class="badge badge-status badge-success">success</span>
-              {% elif r.status == "failed" %}
-                <span class="badge badge-status badge-failed">failed</span>
-              {% else %}
-                <span class="badge badge-status badge-running">{{ r.status }}</span>
-              {% endif %}
-            </td>
-            <td><strong>{{ r.diff_rows }}</strong></td>
-            <td>
-              <a class="btn btn-soft btn-sm" href="{% url 'comparisons:results' r.id %}">
-                <i class="bi bi-eye"></i> Voir
-              </a>
-            </td>
-          </tr>
+        <tr>
+          <td class="text-muted">#{{ r.id }}</td>
+          <td>{{ r.created_at|date:"Y-m-d H:i" }}</td>
+          <td>{{ r.config.category.name }}</td>
+          <td class="fw-semibold">{{ r.config.name }}</td>
+          <td>
+            {% if r.status == "success" %}
+              <span class="badge badge-status badge-success">success</span>
+            {% elif r.status == "failed" %}
+              <span class="badge badge-status badge-failed">failed</span>
+            {% else %}
+              <span class="badge badge-status badge-running">{{ r.status }}</span>
+            {% endif %}
+          </td>
+          <td><strong>{{ r.diff_rows }}</strong></td>
+          <td>{{ r.total_rows }}</td>
+          <td>
+            <a class="btn btn-soft btn-sm" href="{% url 'comparisons:results' r.id %}">
+              <i class="bi bi-eye"></i> Voir
+            </a>
+          </td>
+        </tr>
         {% empty %}
-          <tr><td colspan="8" class="text-center text-muted py-4">Aucune activité.</td></tr>
+        <tr>
+          <td colspan="8" class="text-muted py-4 text-center">Aucune activité.</td>
+        </tr>
         {% endfor %}
       </tbody>
     </table>
   </div>
 </div>
-
 {% endblock %}

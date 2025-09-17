@@ -1,112 +1,246 @@
 {% extends "base.html" %}
 {% load ui_extras %}
-{% block title %}Étape 1 — Charger les deux CSV{% endblock %}
+{% block title %}Étape 1 — Charger les fichiers{% endblock %}
+
 {% block content %}
-
 <style>
-  .stepbar{display:flex;gap:.5rem;align-items:center;margin-bottom:.75rem}
-  .step-pill{font-weight:600;border-radius:999px;padding:.25rem .6rem;font-size:.8rem}
-  .step-on{background:#0d6efd1a;color:#0d6efd;border:1px solid #0d6efd33}
-  .step-off{background:#6c757d14;color:#6c757d;border:1px solid #6c757d2e}
+  :root{
+    --brand:#2563eb;
+    --brand-2:#8b5cf6;
+    --ink:#0f172a;
+    --muted:#64748b;
+    --line:#e5e7eb;
+    --soft:#f8fafc;
+    --ok:#16a34a;
+    --warn:#eab308;
+    --bad:#ef4444;
+  }
 
-  .section-card{border:1px solid #e9ecef;border-radius:1rem;padding:1rem 1.25rem;background:#fff;
-                box-shadow:0 6px 16px rgba(33,37,41,.04)}
-  .section-title{font-weight:700;margin:0 0 .5rem 0;display:flex;align-items:center;gap:.5rem}
-  .muted{color:#6c757d}
+  /* Page wrapper */
+  .screen{
+    background:
+      radial-gradient(1200px 600px at 10% -10%, #c7d2fe40 0, transparent 60%),
+      radial-gradient(1000px 800px at 90% 0%, #ddd6fe40 0, transparent 65%),
+      linear-gradient(180deg, #ffffff 0%, #fafafa 100%);
+    border:1px solid #eef2f7;
+    border-radius:22px;
+    box-shadow:
+      0 20px 50px rgba(2,6,23,.08),
+      inset 0 1px 0 rgba(255,255,255,.6);
+  }
 
-  .fancy-input,.form-select{border-radius:.8rem;border:1px solid #dbe1e8;padding:.6rem .9rem}
-  .fancy-input:focus,.form-select:focus{border-color:#0d6efd66;box-shadow:0 0 0 .25rem #0d6efd22;outline:0}
+  /* Stepper */
+  .stepbar{display:flex;gap:.5rem;align-items:center}
+  .step-pill{
+    --bg: #e9eefc;
+    --fg: #3b82f6;
+    display:inline-flex; align-items:center; gap:.5rem;
+    padding:.35rem .7rem; border-radius:999px; font-weight:700; font-size:.8rem;
+    color:var(--fg); background:var(--bg); border:1px solid #cfe1ff;
+  }
+  .step-pill.step-on{
+    --bg: linear-gradient(90deg, #e0e7ff 0%, #ede9fe 100%);
+    --fg: #1d4ed8;
+    border-color:#c7d2fe;
+    box-shadow:0 1px 0 rgba(255,255,255,.8) inset, 0 4px 10px rgba(37,99,235,.12);
+  }
+  .step-pill i{font-size:1rem}
 
-  .upload-card{border:1px dashed #cfd6de;border-radius:1rem;background:#f8fafc;padding:1.25rem}
-  .dropzone{border:2px dashed #cfd6de;border-radius:.75rem;background:#fff;
-            padding:1rem;text-align:center;transition:.2s ease all}
-  .dropzone:hover{border-color:#0d6efd33;background:#f8fbff}
-  .dropzone i{font-size:1.6rem}
-  .hint{font-size:.85rem;color:#6c757d}
+  /* Cards */
+  .section-card{
+    background:rgba(255,255,255,.7);
+    border:1px solid #eef2f7;
+    border-radius:20px;
+    padding:1rem 1.25rem;
+    box-shadow:
+      0 8px 22px rgba(15,23,42,.06),
+      inset 0 1px 0 rgba(255,255,255,.6);
+    backdrop-filter:saturate(1.2) blur(4px);
+  }
+  .section-title{
+    font-weight:800; letter-spacing:.2px; margin:0 0 .75rem 0;
+    display:flex; align-items:center; gap:.6rem; color:var(--ink);
+  }
+  .section-title i{
+    color:var(--brand);
+    background:linear-gradient(135deg, #e0e7ff, #f5f3ff);
+    border:1px solid #e9e5ff; border-radius:10px; padding:.35rem;
+  }
+
+  /* Inputs */
+  .fancy-input, .form-select{
+    border-radius:12px; border:1px solid #dbe1e8; padding:.65rem .9rem;
+    transition:.18s ease;
+  }
+  .fancy-input:focus,.form-select:focus{
+    border-color:#a5b4fc; box-shadow:0 0 0 .25rem #dbeafe80; outline:0;
+  }
+  .muted{color:var(--muted)}
+  .hint{font-size:.85rem;color:var(--muted)}
+
+  /* Dropzone */
+  .upload-card{padding:1rem; background:linear-gradient(180deg,#ffffff,#fafbff)}
+  .dropzone{
+    position:relative;
+    border:2px dashed #d8e0ea; border-radius:16px;
+    background:#fff; padding:1.1rem; text-align:center;
+    transition:.18s ease; cursor:pointer;
+  }
+  .dropzone:hover{border-color:#c0ccff;background:linear-gradient(180deg,#ffffff,#f7f9ff)}
+  .dropzone.drag{border-color:#7c3aed;background:#f5f3ff}
+  .dropzone .dz-icon{
+    display:inline-grid; place-items:center; width:44px; height:44px;
+    border-radius:12px; margin:0 auto .35rem; font-size:1.35rem;
+    color:#1e293b; background:linear-gradient(135deg,#eef2ff,#f5f3ff); border:1px solid #e6e9ff;
+  }
+
+  /* File pill preview */
+  .file-pill{
+    display:flex; align-items:center; gap:.6rem; justify-content:space-between;
+    border:1px solid #e6e9f2; background:#f9fafb; border-radius:12px; padding:.55rem .7rem;
+    margin-top:.6rem; font-size:.9rem;
+  }
+  .file-pill .badge{
+    font-weight:700; padding:.25rem .5rem; border-radius:999px; border:1px solid #e3e8ff;
+    background:linear-gradient(180deg,#eef2ff,#f5f3ff); color:#334155;
+  }
+  .file-pill.ok{border-color:#bbf7d0;background:#f0fdf4}
+  .file-pill.bad{border-color:#fecaca;background:#fef2f2}
+  .file-pill .meta{color:#475569; font-size:.85rem}
+
+  /* Buttons */
+  .btn-soft{
+    border:1px solid #e5e7eb; background:#ffffff; color:#334155;
+    border-radius:12px;
+  }
+  .btn-soft:hover{background:#f6f7fb}
+
+  /* CTA */
+  .cta{
+    background:linear-gradient(90deg, #2563eb, #8b5cf6);
+    border:none; color:#fff; border-radius:12px;
+    padding:.7rem 1.1rem; font-weight:700; letter-spacing:.2px;
+    box-shadow:0 10px 22px rgba(37,99,235,.25);
+  }
+  .cta:disabled{opacity:.6; box-shadow:none}
+
+  code{background:#0f172a0d; border:1px solid #e2e8f0; border-radius:8px; padding:.1rem .35rem}
 </style>
 
-<div class="card shadow-sm">
-  <div class="card-body">
-    <div class="d-flex align-items-start justify-content-between flex-wrap gap-2 mb-2">
-      <div>
-        <h4 class="mb-1">Étape 1 — Charger les deux CSV</h4>
-        <div class="muted">Choisis (ou crée) une catégorie, puis sélectionne les deux fichiers à comparer.</div>
-      </div>
-      <div class="stepbar">
-        <span class="step-pill step-on">1. Fichiers</span>
-        <span class="step-pill step-off">2. Colonnes & Clés</span>
-        <span class="step-pill step-off">3. Résultats</span>
+<div class="screen p-3 p-md-4 mb-3">
+  <div class="d-flex align-items-start justify-content-between flex-wrap gap-2 mb-3">
+    <div>
+      <h3 class="mb-1" style="font-weight:900;color:var(--ink)">
+        Étape 1 — Charger les deux fichiers
+      </h3>
+      <div class="muted">
+        Choisis (ou crée) une catégorie, puis sélectionne les deux extractions <strong>CSV/XLSX/XLS</strong>.
       </div>
     </div>
 
-    <form method="post" enctype="multipart/form-data" class="vstack gap-3" id="uploadForm">
-      {% csrf_token %}
+    <div class="stepbar">
+      <span class="step-pill step-on"><i class="bi bi-upload"></i> 1. Fichiers</span>
+      <span class="step-pill"><i class="bi bi-columns-gap"></i> 2. Colonnes & Clés</span>
+      <span class="step-pill"><i class="bi bi-graph-up-arrow"></i> 3. Résultats</span>
+    </div>
+  </div>
 
-      <!-- Catégorie -->
-      <div class="section-card">
-        <div class="section-title"><i class="bi bi-diagram-3"></i>Catégorie</div>
-        <div class="row g-3">
-          <div class="col-lg-6">
-            <label class="form-label" for="id_category_choice">Catégorie*</label>
-            {{ form.category_choice|add_class:"form-select" }}
-            <div class="hint mt-1">Choisis <strong>BR</strong>, <strong>Commande</strong>, <strong>Facture</strong>…
-              ou « Autre » pour saisir une catégorie personnalisée.</div>
-          </div>
+  <form method="post" enctype="multipart/form-data" class="vstack gap-3" id="uploadForm">
+    {% csrf_token %}
 
-          <div class="col-lg-6 {% if not form.category_other.value %}d-none{% endif %}" id="otherCategoryCol">
-            <label class="form-label" for="id_category_other">Nouvelle catégorie*</label>
-            {{ form.category_other|add_class:"fancy-input" }}
-            <div class="form-text">Exemples : Avoirs, Inventaire, IC…</div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Fichiers -->
+    <!-- Catégorie -->
+    <div class="section-card">
+      <div class="section-title"><i class="bi bi-diagram-3"></i>Catégorie</div>
       <div class="row g-3">
         <div class="col-lg-6">
-          <div class="section-card upload-card h-100">
-            <div class="section-title"><i class="bi bi-cloud-arrow-up"></i>CSV — Source <strong>Web1</strong>*</div>
-            <div class="dropzone">
-              <div class="mb-2"><i class="bi bi-filetype-csv"></i></div>
-              <div class="muted mb-2">Glisse-dépose ton fichier ici ou clique pour le choisir</div>
-              {{ form.csv_web1|add_class:"form-control" }}
-            </div>
-            <div class="hint mt-2">Le séparateur et l’encodage seront détectés automatiquement.</div>
+          <label class="form-label" for="id_category_choice">Catégorie*</label>
+          {{ form.category_choice|add_class:"form-select" }}
+          <div class="hint mt-1">
+            Choisis <strong>BR</strong>, <strong>Commande</strong>, <strong>Facture</strong>…
+            ou « Autre » pour saisir une catégorie personnalisée.
           </div>
         </div>
 
-        <div class="col-lg-6">
-          <div class="section-card upload-card h-100">
-            <div class="section-title"><i class="bi bi-cloud-arrow-up"></i>CSV — Source <strong>Desktop</strong>*</div>
-            <div class="dropzone">
-              <div class="mb-2"><i class="bi bi-filetype-csv"></i></div>
-              <div class="muted mb-2">Glisse-dépose ton fichier ici ou clique pour le choisir</div>
-              {{ form.csv_desktop|add_class:"form-control" }}
+        <div class="col-lg-6 {% if not form.category_other.value %}d-none{% endif %}" id="otherCategoryCol">
+          <label class="form-label" for="id_category_other">Nouvelle catégorie*</label>
+          {{ form.category_other|add_class:"fancy-input" }}
+          <div class="form-text">Exemples : Avoirs, Inventaire, IC…</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Fichiers -->
+    <div class="row g-3">
+      <!-- Web1 -->
+      <div class="col-lg-6">
+        <div class="section-card upload-card h-100">
+          <div class="section-title">
+            <i class="bi bi-cloud-arrow-up"></i>Fichier — Source <strong>Web1</strong>*
+          </div>
+
+          <label class="dropzone w-100" for="{{ form.csv_web1.id_for_label }}" data-drop="w1">
+            <div class="dz-icon"><i class="bi bi-file-earmark-spreadsheet"></i></div>
+            <div class="muted mb-2">Glisse-dépose (CSV / XLSX / XLS) ou clique pour choisir</div>
+            {{ form.csv_web1|add_class:"form-control"|safe }}
+          </label>
+
+          <div id="w1Preview" class="file-pill d-none" aria-live="polite">
+            <div class="d-flex align-items-center gap-2">
+              <span class="badge" id="w1Ext">CSV</span>
+              <span id="w1Name">—</span>
             </div>
-            <div class="hint mt-2">Assure-toi qu’il s’agit de l’extraction correspondante à comparer.</div>
+            <div class="meta" id="w1Size">0 Ko</div>
+          </div>
+
+          <div class="hint mt-2">
+            Le séparateur/encodage CSV est détecté automatiquement.
           </div>
         </div>
       </div>
 
-      <div class="d-flex align-items-center gap-2 mt-1">
-        <button class="btn btn-primary px-4" id="submitBtn" disabled>
-          Continuer <i class="bi bi-arrow-right-short"></i>
-        </button>
-        <a href="{% url 'ui:home' %}" class="btn btn-soft">Annuler</a>
-      </div>
+      <!-- Desktop -->
+      <div class="col-lg-6">
+        <div class="section-card upload-card h-100">
+          <div class="section-title">
+            <i class="bi bi-cloud-arrow-up"></i>Fichier — Source <strong>Desktop</strong>*
+          </div>
 
-      <div class="hint mt-2">
-        Astuce : renomme tes fichiers comme
-        <code>230xsupplierorder_2025-09-11T14_30.csv</code> pour détecter automatiquement le <em>magasin</em>.
+          <label class="dropzone w-100" for="{{ form.csv_desktop.id_for_label }}" data-drop="w2">
+            <div class="dz-icon"><i class="bi bi-file-earmark-spreadsheet"></i></div>
+            <div class="muted mb-2">Glisse-dépose (CSV / XLSX / XLS) ou clique pour choisir</div>
+            {{ form.csv_desktop|add_class:"form-control"|safe }}
+          </label>
+
+          <div id="w2Preview" class="file-pill d-none" aria-live="polite">
+            <div class="d-flex align-items-center gap-2">
+              <span class="badge" id="w2Ext">CSV</span>
+              <span id="w2Name">—</span>
+            </div>
+            <div class="meta" id="w2Size">0 Ko</div>
+          </div>
+
+          <div class="hint mt-2">Assure-toi qu’il s’agit de l’extraction correspondante.</div>
+        </div>
       </div>
-    </form>
-  </div>
+    </div>
+
+    <div class="d-flex align-items-center gap-2 mt-1">
+      <button class="cta px-4" id="submitBtn" disabled>
+        Continuer <i class="bi bi-arrow-right-short"></i>
+      </button>
+      <a href="{% url 'ui:home' %}" class="btn btn-soft px-3">Annuler</a>
+    </div>
+
+    <div class="hint mt-3">
+      Astuce : renomme tes fichiers comme
+      <code>230xsupplierorder_2025-09-11T14_30.csv</code> pour détecter automatiquement le <em>magasin</em>.
+    </div>
+  </form>
 </div>
 
 <script>
 (function() {
   function byId(id){return document.getElementById(id)}
-
   const sel = byId('id_category_choice');
   const otherCol = byId('otherCategoryCol');
   const otherInput = byId('id_category_other');
@@ -114,39 +248,107 @@
   const file2 = byId('{{ form.csv_desktop.id_for_label }}');
   const submitBtn = byId('submitBtn');
 
-  // Cherche dynamiquement l'option "Autre…" (value == "__other__" ou libellé contenant "autre")
+  // Force accept côté front au cas où le form n'est pas encore mis à jour
+  [file1, file2].forEach(i => { if(i){ i.setAttribute('accept','.csv,.xlsx,.xls'); } });
+
+  // Step: Autre catégorie toggle
   let OTHER_VALUE = '__other__';
   if (sel) {
     const opt = Array.from(sel.options).find(o => o.value === '__other__' || /autre/i.test(o.textContent || ''));
     if (opt) OTHER_VALUE = opt.value;
   }
-
   function toggleOther() {
     if (!sel) return;
     const needOther = sel.value === OTHER_VALUE;
-    if (needOther) {
-      otherCol.classList.remove('d-none');
-      if (otherInput){ otherInput.required = true; }
+    otherCol.classList.toggle('d-none', !needOther);
+    if (otherInput) otherInput.required = needOther;
+    validate();
+  }
+
+  // Drag & drop helpers
+  function humanSize(bytes){
+    if (bytes < 1024) return bytes + ' o';
+    const kb = bytes/1024;
+    if (kb < 1024) return kb.toFixed(1) + ' Ko';
+    return (kb/1024).toFixed(2) + ' Mo';
+  }
+  const okExt = ['csv','xlsx','xls'];
+
+  function updatePreview(input, boxId){
+    const box = byId(boxId);
+    if(!input || !box){ return; }
+    if(!input.files || input.files.length === 0){
+      box.classList.add('d-none');
+      return;
+    }
+    const f = input.files[0];
+    const ext = (f.name.split('.').pop() || '').toLowerCase();
+    const good = okExt.includes(ext);
+    box.classList.remove('d-none','ok','bad');
+    box.classList.add(good ? 'ok' : 'bad');
+    box.querySelector('#'+boxId.replace('Preview','Ext')).textContent = ext.toUpperCase();
+    box.querySelector('#'+boxId.replace('Preview','Name')).textContent = f.name;
+    box.querySelector('#'+boxId.replace('Preview','Size')).textContent = humanSize(f.size);
+
+    // style invalid si mauvaise extension
+    if (!good){
+      input.classList.add('is-invalid');
+      input.setCustomValidity('Format non pris en charge. Utilise CSV, XLSX ou XLS.');
     } else {
-      otherCol.classList.add('d-none');
-      if (otherInput){ otherInput.required = false; }
+      input.classList.remove('is-invalid');
+      input.setCustomValidity('');
     }
     validate();
+  }
+
+  function attachDZ(labelSelector, input){
+    const dz = document.querySelector(labelSelector);
+    if(!dz || !input) return;
+
+    // Visuel drag
+    ['dragenter','dragover'].forEach(evn=>dz.addEventListener(evn, e=>{
+      e.preventDefault(); e.stopPropagation(); dz.classList.add('drag');
+    }));
+    ['dragleave','drop'].forEach(evn=>dz.addEventListener(evn, e=>{
+      e.preventDefault(); e.stopPropagation(); dz.classList.remove('drag');
+    }));
+
+    // Drop -> remplir l'input
+    dz.addEventListener('drop', e=>{
+      const files = e.dataTransfer.files;
+      if (!files || !files.length) return;
+      const dt = new DataTransfer();
+      // On ne garde que le premier fichier (comme l'input)
+      dt.items.add(files[0]);
+      input.files = dt.files;
+      input.dispatchEvent(new Event('change', {bubbles:true}));
+    });
   }
 
   function validate() {
     const catOK = (sel && sel.value && (sel.value !== OTHER_VALUE || (otherInput && otherInput.value.trim().length > 0)));
     const filesOK = file1 && file1.files.length > 0 && file2 && file2.files.length > 0;
-    submitBtn.disabled = !(catOK && filesOK);
+    const extsOK  = [file1, file2].every(i=>{
+      if(!i || !i.files.length) return false;
+      const ext = (i.files[0].name.split('.').pop() || '').toLowerCase();
+      return okExt.includes(ext);
+    });
+    submitBtn.disabled = !(catOK && filesOK && extsOK);
   }
 
-  if (sel) sel.addEventListener('change', toggleOther);
-  if (otherInput) otherInput.addEventListener('input', validate);
-  if (file1) file1.addEventListener('change', validate);
-  if (file2) file2.addEventListener('change', validate);
+  // Bindings
+  sel && sel.addEventListener('change', toggleOther);
+  otherInput && otherInput.addEventListener('input', validate);
+  file1 && file1.addEventListener('change', ()=>updatePreview(file1,'w1Preview'));
+  file2 && file2.addEventListener('change', ()=>updatePreview(file2,'w2Preview'));
+
+  attachDZ('[data-drop="w1"]', file1);
+  attachDZ('[data-drop="w2"]', file2);
 
   // Init
   toggleOther();
+  updatePreview(file1,'w1Preview');
+  updatePreview(file2,'w2Preview');
   validate();
 })();
 </script>

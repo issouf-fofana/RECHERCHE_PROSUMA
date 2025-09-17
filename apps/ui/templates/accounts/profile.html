@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+{% block title %}Mon profil{% endblock %}
+{% block content %}
+
+<h3 class="page-title mb-3">
+  <span class="dot"><i class="bi bi-person-circle"></i></span>
+  Mon profil
+</h3>
+
+<style>
+  .card-pro{background:#fff;border:1px solid #e9eef5;border-radius:18px;box-shadow:var(--ring);overflow:hidden}
+  .chip{border-radius:999px;padding:.25rem .6rem;font-weight:700}
+  .chip-admin{background:#e9f1ff;color:#17479e;border:1px solid #cfe1ff}
+  .chip-user{background:#eef2f7;color:#334155;border:1px solid #e5e7eb}
+  .chip-on{background:#ecfdf5;color:#047857;border:1px solid #bbf7d0}
+  .mut{color:#6b7280}
+</style>
+
+<div class="row g-3">
+  <div class="col-lg-5">
+    <div class="card-pro p-3">
+      <div class="d-flex gap-3 align-items-center">
+        <div class="rounded-3 bg-primary text-white d-grid place-items-center" style="width:64px;height:64px">
+          <i class="bi bi-person fs-3"></i>
+        </div>
+        <div>
+          <div class="fw-bold fs-5">{{ u.username }}</div>
+          <div class="mut">{{ u.email|default:"—" }}</div>
+          <div class="mt-1 d-flex gap-2 flex-wrap">
+            {% if u.is_staff %}
+              <span class="chip chip-admin">Admin</span>
+            {% else %}
+              <span class="chip chip-user">User</span>
+            {% endif %}
+            {% if u.is_active %}
+              <span class="chip chip-on">Actif</span>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+
+      <hr class="my-3">
+
+      <div class="row g-2 small">
+        <div class="col-6 mut">Inscription</div>
+        <div class="col-6 text-end">{{ u.date_joined|date:"Y-m-d H:i" }}</div>
+
+        <div class="col-6 mut">Dernière connexion</div>
+        <div class="col-6 text-end">{{ u.last_login|date:"Y-m-d H:i"|default:"—" }}</div>
+      </div>
+
+      <div class="mt-3 d-grid gap-2">
+        <a class="btn btn-primary" href="{% url 'accounts:password_change' %}">
+          <i class="bi bi-key me-1"></i> Changer mon mot de passe
+        </a>
+        
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-7">
+    <div class="card-pro p-3">
+      <div class="d-flex justify-content-between align-items-center">
+        <h6 class="mb-0 fw-bold"><i class="bi bi-clock-history me-2"></i>Dernières vérifications</h6>
+        
+        <a class="btn btn-soft btn-sm"
+           href="{% url 'comparisons:runs_dashboard' %}?{% if selected_category %}category={{ selected_category }}&{% endif %}{% if selected_store %}store={{ selected_store }}&{% endif %}{% if selected_owner %}owner={{ selected_owner }}&{% endif %}start={{ start|date:'Y-m-d' }}&end={{ end|date:'Y-m-d' }}">
+          Voir tout
+        </a>
+      </div>
+      <hr class="my-2">
+      {% if recent_runs %}
+        <div class="vstack gap-2">
+          {% for r in recent_runs %}
+            <div class="d-flex align-items-center justify-content-between p-2 rounded-3 border" style="border-color:#eef0f4">
+              <div>
+                <div class="fw-semibold">{{ r.config.category.name }} — {{ r.config.name }} <span class="text-muted">#{{ r.id }}</span></div>
+                <div class="small text-muted">{{ r.created_at|date:"Y-m-d H:i" }}</div>
+              </div>
+              <div class="d-flex align-items-center gap-2">
+                {% if r.status == "success" %}
+                  <span class="badge bg-success-subtle text-success">success</span>
+                {% elif r.status == "failed" %}
+                  <span class="badge bg-danger-subtle text-danger">failed</span>
+                {% else %}
+                  <span class="badge bg-primary-subtle text-primary">{{ r.status }}</span>
+                {% endif %}
+                <a class="btn btn-soft btn-sm" href="{% url 'comparisons:results' r.id %}">
+                  <i class="bi bi-eye"></i> Détails
+                </a>
+              </div>
+            </div>
+          {% endfor %}
+        </div>
+      {% else %}
+        <div class="text-muted">Aucune activité récente.</div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}

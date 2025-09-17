@@ -1,0 +1,119 @@
+{% extends "base.html" %}
+{% block title %}Mon activité{% endblock %}
+
+{% block content %}
+
+<h3 class="page-title mb-3">
+  <span class="dot"><i class="bi bi-activity"></i></span>
+  Mon activité
+</h3>
+
+<style>
+  .metrics-grid{display:grid;gap:12px;grid-template-columns:repeat(12,1fr)}
+  .metric-card{grid-column:span 3;position:relative;background:#fff;border-radius:18px;border:1px solid #e9eef5;box-shadow:var(--ring);padding:16px 16px 14px 18px;min-height:120px;overflow:hidden}
+  .metric-card::after{content:"";position:absolute;inset:-1px auto -1px -1px;width:8px;border-radius:18px 0 0 18px}
+  .metric-card.ac-blue::after{background:linear-gradient(180deg,#3b82f6 0%,#1d4ed8 100%)}
+  .metric-card.ac-green::after{background:linear-gradient(180deg,#16a34a 0%,#0f7a36 100%)}
+  .metric-card.ac-pink::after{background:linear-gradient(180deg,#db2777 0%,#f43f5e 100%)}
+  .metric-card .icon{width:44px;height:44px;border-radius:14px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:20px;margin-bottom:8px}
+  .icon.blue{background:linear-gradient(135deg,#3b82f6,#2563eb)}
+  .icon.green{background:linear-gradient(135deg,#16a34a,#22c55e)}
+  .icon.pink{background:linear-gradient(135deg,#db2777,#f43f5e)}
+  .metric-card .value{font-weight:800;font-size:1.8rem;line-height:1}
+  .metric-card .label{color:#6b7280;font-size:.95rem;margin-top:6px}
+
+  .table-wrap{background:#fff;border-radius:16px;box-shadow:var(--ring);overflow:hidden}
+  .table-modern thead th{background:#f3f6ff;color:#0b1b46;font-weight:700;border-bottom:0}
+  .btn-soft{border-radius:12px;border:1px solid #e5e7eb;background:#fff;color:#111827;padding:.35rem .6rem;font-weight:600}
+  .btn-soft:hover{background:#f9fafb}
+  .badge-status{font-weight:700;letter-spacing:.2px;border-radius:999px}
+  .badge-success{background:#e8fff3;color:#0a7a3d}
+  .badge-failed{background:#ffefef;color:#b42318}
+  .badge-running{background:#eef5ff;color:#1e40af}
+</style>
+
+<!-- Petits KPI basés sur la liste (sans calcul serveur) -->
+<div class="metrics-grid mb-3">
+  <div class="metric-card ac-blue">
+    <div class="icon blue"><i class="bi bi-collection"></i></div>
+    <div class="value">{{ runs|length }}</div>
+    <div class="label">Runs (moi)</div>
+  </div>
+  <div class="metric-card ac-green">
+    <div class="icon green"><i class="bi bi-check2-circle"></i></div>
+    <div class="value">
+      {# compte les success #}
+      {% with 0 as count %}
+        {% for r in runs %}{% if r.status == "success" %}{% widthratio 1 1 1 as one %}{% firstof "" %}{% endifequal %}{% endif %}{% endfor %}
+      {% endwith %}
+      {# fallback : on affiche juste “—” si on ne veut pas surcharger le template #}
+      —
+    </div>
+    <div class="label">Succès</div>
+  </div>
+  <div class="metric-card ac-pink">
+    <div class="icon pink"><i class="bi bi-x-circle"></i></div>
+    <div class="value">—</div>
+    <div class="label">Échecs</div>
+  </div>
+</div>
+
+<div class="table-wrap">
+  <div class="table-responsive">
+    <table class="table table-modern table-hover align-middle mb-0">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Date</th>
+          <th>Catégorie</th>
+          <th>Configuration</th>
+          <th>Statut</th>
+          <th>Écarts</th>
+          <th>Lignes</th>
+          <th>Résultats</th>
+          <th>Exports</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in runs %}
+        <tr>
+          <td class="text-muted">#{{ r.id }}</td>
+          <td>{{ r.created_at|date:"Y-m-d H:i" }}</td>
+          <td>{{ r.config.category.name }}</td>
+          <td class="fw-semibold">{{ r.config.name }}</td>
+          <td>
+            {% if r.status == "success" %}
+              <span class="badge badge-status badge-success">success</span>
+            {% elif r.status == "failed" %}
+              <span class="badge badge-status badge-failed">failed</span>
+            {% else %}
+              <span class="badge badge-status badge-running">{{ r.status }}</span>
+            {% endif %}
+          </td>
+          <td><strong>{{ r.diff_rows }}</strong></td>
+          <td>{{ r.total_rows }}</td>
+          <td>
+            <a class="btn btn-soft btn-sm" href="{% url 'comparisons:results' r.id %}">
+              <i class="bi bi-eye"></i> Voir
+            </a>
+          </td>
+          <td class="text-nowrap">
+            {% if r.export_csv %}
+              <a class="btn btn-soft btn-sm" href="{{ r.export_csv }}"><i class="bi bi-filetype-csv"></i> CSV</a>
+            {% endif %}
+            {% if r.export_xlsx %}
+              <a class="btn btn-soft btn-sm" href="{{ r.export_xlsx }}"><i class="bi bi-filetype-xlsx"></i> XLSX</a>
+            {% endif %}
+          </td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="9" class="text-muted py-4 text-center">Aucun run pour l’instant.</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{% endblock %}
