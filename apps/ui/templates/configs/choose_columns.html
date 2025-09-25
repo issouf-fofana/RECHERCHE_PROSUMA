@@ -17,10 +17,28 @@
       linear-gradient(180deg, #ffffff 0%, #fafafa 100%);
     border:1px solid #eef2f7; border-radius:22px;
     box-shadow:0 20px 50px rgba(2,6,23,.08), inset 0 1px 0 rgba(255,255,255,.6);
-    padding:1rem 1rem 7rem; /* espace pour la barre d’action */
+    padding:1rem 1rem 7rem; /* espace pour la barre de navigation */
   }
 
-  /* Step cards */
+  /* Stepper (header) */
+  .stepper{ display:flex; gap:10px; overflow:auto; padding:6px; margin-bottom:12px; }
+  .step-pill{
+    display:flex; align-items:center; gap:10px;
+    background:#fff; border:1px solid #e8ecf3; border-radius:999px;
+    padding:8px 12px; font-weight:700; color:#334155; white-space:nowrap;
+    box-shadow:0 6px 16px rgba(2,6,23,.04), inset 0 1px 0 rgba(255,255,255,.8);
+    transition:all .25s ease; cursor:pointer;
+  }
+  .step-pill .idx{
+    width:26px; height:26px; display:grid; place-items:center;
+    border-radius:10px; border:1px solid #dbe6ff; background:#eef5ff; color:#2563eb; font-size:.85rem;
+  }
+  .step-pill.active{ border-color:#c3d3ff; background:linear-gradient(180deg,#ffffff,#f7f9ff) }
+  .step-pill.done{ border-color:#c7f2d7; background:linear-gradient(180deg,#ffffff,#f6fff9) }
+  .step-pill.done .idx{ background:#eafff0; border-color:#b7efcc; color:#16a34a }
+  .step-pill.disabled{ opacity:.5; pointer-events:none }
+
+  /* Cards */
   .step-card{
     background:var(--card);
     border:1px solid #eef0f4; border-radius:18px;
@@ -38,16 +56,11 @@
     border-radius:10px; background:#eef5ff; color:#2563eb; font-size:.9rem;
     border:1px solid #dbe6ff;
   }
-  .step-actions{display:flex; align-items:center; gap:8px}
   .step-body{padding:16px}
 
   /* Inputs */
-  .form-select,.form-control{
-    border-radius:12px; border:1px solid #dbe1e8; padding:.65rem .9rem; transition:.18s ease
-  }
-  .form-select:focus,.form-control:focus{
-    border-color:#a5b4fc; box-shadow:0 0 0 .25rem #dbeafe80; outline:0;
-  }
+  .form-select,.form-control{ border-radius:12px; border:1px solid #dbe1e8; padding:.65rem .9rem; transition:.18s ease }
+  .form-select:focus,.form-control:focus{ border-color:#a5b4fc; box-shadow:0 0 0 .25rem #dbeafe80; outline:0 }
 
   /* Preview tables */
   .tbl-wrap{max-height:44vh; border:1px solid #e8ecf3; border-radius:14px; overflow:auto}
@@ -62,232 +75,441 @@
   }
   .preview-table tbody tr:nth-child(odd) td{background:#fcfdff}
 
-  /* Chips (si tu affiches des entêtes calculées) */
-  .chip{display:inline-block; background:#f1f5f9; color:#334155; border-radius:999px; padding:6px 10px; margin:3px 4px; font-size:.8rem; border:1px solid #e6e9f2}
-
-  /* Buttons */
   .btn-soft{border:1px solid #e7e9ee; background:#fbfcfe; color:#334155; border-radius:12px}
   .btn-soft:hover{background:#f2f5fb}
 
-  /* Action bar collante */
+  /* Wizard: visibilité + animations */
+  .wizard-step{ display:none; opacity:0; transform:translateY(6px); transition:opacity .25s ease, transform .25s ease }
+  .wizard-step.active{ display:block; opacity:1; transform:none }
+  .wizard-step.exiting{ opacity:0; transform:translateY(8px) }
+
+  /* Nav bar */
   .action-bar{
     position:fixed; left:0; right:0; bottom:0; z-index:20;
     background:linear-gradient(180deg, rgba(255,255,255,.35) 0, #fff 45%);
     border-top:1px solid #e8ecf3; box-shadow:0 -10px 30px rgba(2,6,23,.06);
   }
   .action-inner{
-    max-width:1200px; margin:0 auto; padding:.8rem 1rem; display:flex; align-items:center; gap:1rem;
+    max-width:1200px; margin:0 auto; padding:.8rem 1rem; display:flex; align-items:center; gap:.6rem;
     flex-wrap:wrap; justify-content:center;
   }
   .cta{
     background:linear-gradient(90deg, var(--brand), var(--brand2));
     border:none; color:#fff; border-radius:12px; padding:.9rem 1.4rem; font-weight:800;
     letter-spacing:.2px; box-shadow:0 12px 26px rgba(37,99,235,.25);
-    width:100%;
   }
-  @media (min-width:768px){
-    .cta{width: min(560px, 60%)}
+  .btn-ghost{
+    border:1px dashed #d3daea; background:#fff; color:#334155; border-radius:12px; padding:.7rem 1.1rem; font-weight:700;
   }
   .tip{color:var(--muted); font-size:.9rem}
+  .spacer{flex:1}
 </style>
 
 <div class="screen">
 
+  <!-- Stepper header -->
+  <div id="stepper" class="stepper">
+    <div class="step-pill" data-pill="1"><span class="idx">1</span> Entêtes</div>
+    <div class="step-pill disabled" data-pill="2"><span class="idx">2</span> Name</div>
+    <div class="step-pill disabled" data-pill="3"><span class="idx">3</span> Col. Web1</div>
+    <div class="step-pill disabled" data-pill="4"><span class="idx">4</span> Col. Desktop</div>
+    <div class="step-pill disabled" data-pill="5"><span class="idx">5</span> Clés Web1</div>
+    <div class="step-pill disabled" data-pill="6"><span class="idx">6</span> Clés Desktop</div>
+    <div class="step-pill disabled" data-pill="7"><span class="idx">7</span> Type de jointure</div>
+  </div>
+
   <form method="post" id="cfg-form" novalidate>
     {% csrf_token %}
     {{ form.non_field_errors }}
+    <input type="hidden" name="action" id="actionField" value="">
 
-    <!-- 1) Entêtes -->
-    <div class="step-card">
-      <div class="step-head">
-        <h6 class="step-title">
-          <span class="idx">1</span> Entêtes (choisir la ligne contenant les noms de colonnes)
-        </h6>
-        <div class="step-actions">
-          <button name="action" value="apply_headers" class="btn btn-primary btn-sm">
-            <i class="bi bi-magic"></i> Appliquer
-          </button>
+    <!-- =========== STEP 1 -->
+    <section class="wizard-step" data-step="1">
+      <div class="step-card">
+        <div class="step-head">
+          <h6 class="step-title"><span class="idx">1</span> Entêtes (choisir la ligne contenant les noms de colonnes)</h6>
+          <div class="step-actions">
+            <!-- Bouton serveur (ne change pas d’étape) -->
+            <button type="button" class="btn btn-primary btn-sm" id="applyHeadersBtn">
+              <i class="bi bi-magic"></i> Appliquer
+            </button>
+          </div>
         </div>
-      </div>
-      <div class="step-body">
-        <div class="row g-4">
-          <!-- Web1 -->
-          <div class="col-lg-6">
-            <h6 class="mb-2">Ligne d’entêtes — <strong>Web1</strong></h6>
-            {{ form.header_web1|as_crispy_field }}
+        <div class="step-body">
+          <div class="row g-4">
+            <!-- Web1 -->
+            <div class="col-lg-6">
+              <h6 class="mb-2">Ligne d’entêtes — <strong>Web1</strong></h6>
+              {{ form.header_web1|as_crispy_field }}
 
-            <div class="mt-3">
-              <div class="small text-muted mb-1">Aperçu des premières lignes :</div>
-              <div class="tbl-wrap">
-                <table class="preview-table">
-                  <thead>
-                    <tr>
-                      {% for c in preview.web1.columns %}<th title="{{ c }}">{{ c }}</th>{% endfor %}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {% for row in preview.web1.rows %}
+              <div class="mt-3">
+                <div class="small text-muted mb-1">Aperçu des premières lignes :</div>
+                <div class="tbl-wrap">
+                  <table class="preview-table">
+                    <thead>
                       <tr>
-                        {% for cell in row %}<td title="{{ cell|default_if_none:'' }}">{{ cell }}</td>{% endfor %}
+                        {% for c in preview.web1.columns %}<th title="{{ c }}">{{ c }}</th>{% endfor %}
                       </tr>
-                    {% empty %}
-                      <tr><td class="text-muted" colspan="99">Aucune donnée</td></tr>
-                    {% endfor %}
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody>
+                      {% for row in preview.web1.rows %}
+                        <tr>
+                          {% for cell in row %}<td title="{{ cell|default_if_none:'' }}">{{ cell }}</td>{% endfor %}
+                        </tr>
+                      {% empty %}
+                        <tr><td class="text-muted" colspan="99">Aucune donnée</td></tr>
+                      {% endfor %}
+                    </tbody>
+                  </table>
+                </div>
               </div>
             </div>
-          </div>
 
-          <!-- Desktop -->
-          <div class="col-lg-6">
-            <h6 class="mb-2">Ligne d’entêtes — <strong>Desktop</strong></h6>
-            {{ form.header_desktop|as_crispy_field }}
+            <!-- Desktop -->
+            <div class="col-lg-6">
+              <h6 class="mb-2">Ligne d’entêtes — <strong>Desktop</strong></h6>
+              {{ form.header_desktop|as_crispy_field }}
 
-            <div class="mt-3">
-              <div class="small text-muted mb-1">Aperçu des premières lignes :</div>
-              <div class="tbl-wrap">
-                <table class="preview-table">
-                  <thead>
-                    <tr>
-                      {% for c in preview.desktop.columns %}<th title="{{ c }}">{{ c }}</th>{% endfor %}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {% for row in preview.desktop.rows %}
+              <div class="mt-3">
+                <div class="small text-muted mb-1">Aperçu des premières lignes :</div>
+                <div class="tbl-wrap">
+                  <table class="preview-table">
+                    <thead>
                       <tr>
-                        {% for cell in row %}<td title="{{ cell|default_if_none:'' }}">{{ cell }}</td>{% endfor %}
+                        {% for c in preview.desktop.columns %}<th title="{{ c }}">{{ c }}</th>{% endfor %}
                       </tr>
-                    {% empty %}
-                      <tr><td class="text-muted" colspan="99">Aucune donnée</td></tr>
-                    {% endfor %}
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody>
+                      {% for row in preview.desktop.rows %}
+                        <tr>
+                          {% for cell in row %}<td title="{{ cell|default_if_none:'' }}">{{ cell }}</td>{% endfor %}
+                        </tr>
+                      {% empty %}
+                        <tr><td class="text-muted" colspan="99">Aucune donnée</td></tr>
+                      {% endfor %}
+                    </tbody>
+                  </table>
+                </div>
               </div>
             </div>
+
           </div>
-
         </div>
       </div>
-    </div>
+    </section>
 
-    <!-- 2) Name -->
-    <div class="step-card">
-      <div class="step-head">
-        <h6 class="step-title"><span class="idx">2</span> Name*</h6>
-        <div class="step-actions">
-          <button class="btn btn-soft btn-sm collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#blk-name">
-            <i class="bi bi-chevron-down"></i>
-          </button>
+    <!-- =========== STEP 2 -->
+    <section class="wizard-step" data-step="2">
+      <div class="step-card">
+        <div class="step-head">
+          <h6 class="step-title"><span class="idx">2</span> Name*</h6>
+        </div>
+        <div class="step-body">
+          <label class="form-label" for="{{ form.name.id_for_label }}">Nom de la configuration</label>
+          {{ form.name|as_crispy_field }}
         </div>
       </div>
-      <div id="blk-name" class="collapse step-body">
-        <label class="form-label" for="{{ form.name.id_for_label }}">Nom de la configuration</label>
-        {{ form.name|as_crispy_field }}
-      </div>
-    </div>
+    </section>
 
-    <!-- 3) Colonnes Web1 -->
-    <div class="step-card">
-      <div class="step-head">
-        <h6 class="step-title"><span class="idx">3</span> Colonnes à garder (Web1)*</h6>
-        <div class="step-actions">
-          <button class="btn btn-soft btn-sm collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#blk-web1">
-            <i class="bi bi-chevron-down"></i>
-          </button>
+    <!-- =========== STEP 3 -->
+    <section class="wizard-step" data-step="3">
+      <div class="step-card">
+        <div class="step-head">
+          <h6 class="step-title"><span class="idx">3</span> Colonnes à garder (Web1)*</h6>
         </div>
-      </div>
-      <div id="blk-web1" class="collapse step-body">
-        <div class="scroll-pane">
+        <div class="step-body">
           {{ form.columns_web1|as_crispy_field }}
         </div>
       </div>
-    </div>
+    </section>
 
-    <!-- 4) Colonnes Desktop -->
-    <div class="step-card">
-      <div class="step-head">
-        <h6 class="step-title"><span class="idx">4</span> Colonnes à garder (Desktop)*</h6>
-        <div class="step-actions">
-          <button class="btn btn-soft btn-sm collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#blk-desk">
-            <i class="bi bi-chevron-down"></i>
-          </button>
+    <!-- =========== STEP 4 -->
+    <section class="wizard-step" data-step="4">
+      <div class="step-card">
+        <div class="step-head">
+          <h6 class="step-title"><span class="idx">4</span> Colonnes à garder (Desktop)*</h6>
         </div>
-      </div>
-      <div id="blk-desk" class="collapse step-body">
-        <div class="scroll-pane">
+        <div class="step-body">
           {{ form.columns_desktop|as_crispy_field }}
         </div>
       </div>
-    </div>
+    </section>
 
-    <!-- 5) Clés Web1 -->
-    <div class="step-card">
-      <div class="step-head">
-        <h6 class="step-title"><span class="idx">5</span> Clés (Web1) — ordre = priorité*</h6>
-        <div class="step-actions">
-          <button class="btn btn-soft btn-sm collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#blk-keyw">
-            <i class="bi bi-chevron-down"></i>
-          </button>
+    <!-- =========== STEP 5 -->
+    <section class="wizard-step" data-step="5">
+      <div class="step-card">
+        <div class="step-head">
+          <h6 class="step-title"><span class="idx">5</span> Clés (Web1) — ordre = priorité*</h6>
         </div>
-      </div>
-      <div id="blk-keyw" class="collapse step-body">
-        <div class="scroll-pane">
+        <div class="step-body">
           {{ form.join_key_web1|as_crispy_field }}
         </div>
       </div>
-    </div>
+    </section>
 
-    <!-- 6) Clés Desktop -->
-    <div class="step-card">
-      <div class="step-head">
-        <h6 class="step-title"><span class="idx">6</span> Clés (Desktop) — même nombre et ordre correspondant</h6>
-        <div class="step-actions">
-          <button class="btn btn-soft btn-sm collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#blk-keyd">
-            <i class="bi bi-chevron-down"></i>
-          </button>
+    <!-- =========== STEP 6 -->
+    <section class="wizard-step" data-step="6">
+      <div class="step-card">
+        <div class="step-head">
+          <h6 class="step-title"><span class="idx">6</span> Clés (Desktop) — même nombre et ordre correspondant</h6>
         </div>
-      </div>
-      <div id="blk-keyd" class="collapse step-body">
-        <div class="scroll-pane">
+        <div class="step-body">
           {{ form.join_key_desktop|as_crispy_field }}
         </div>
       </div>
-    </div>
+    </section>
 
-    <!-- 7) Type de jointure -->
-    <div class="step-card">
-      <div class="step-head">
-        <h6 class="step-title"><span class="idx">7</span> Type de jointure*</h6>
-        <div class="step-actions">
-          <button class="btn btn-soft btn-sm collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#blk-join">
-            <i class="bi bi-chevron-down"></i>
-          </button>
+    <!-- =========== STEP 7 -->
+    <section class="wizard-step" data-step="7">
+      <div class="step-card">
+        <div class="step-head">
+          <h6 class="step-title"><span class="idx">7</span> Type de jointure*</h6>
+        </div>
+        <div class="step-body">
+          {{ form.join_type|as_crispy_field }}
+          <ul class="small text-muted mb-0">
+            <li><strong>Left</strong> : lignes Web1 sans correspondance</li>
+            <li><strong>Right</strong> : lignes Desktop sans correspondance</li>
+            <li><strong>Outer</strong> : écarts des deux côtés</li>
+            <li><strong>Inner</strong> : seulement les correspondances</li>
+          </ul>
         </div>
       </div>
-      <div id="blk-join" class="collapse step-body">
-        {{ form.join_type|as_crispy_field }}
-        <ul class="small text-muted mb-0">
-          <li><strong>Left</strong> : lignes Web1 sans correspondance</li>
-          <li><strong>Right</strong> : lignes Desktop sans correspondance</li>
-          <li><strong>Outer</strong> : écarts des deux côtés</li>
-          <li><strong>Inner</strong> : seulement les correspondances</li>
-        </ul>
-      </div>
-    </div>
+    </section>
 
-    <!-- Barre d’action globale (bouton plein largeur) -->
+    <!-- ======= BARRE DE NAVIGATION WIZARD -->
     <div class="action-bar">
       <div class="action-inner">
-        <div class="tip d-none d-md-block">
-          Vérifie les entêtes et les clés, puis lance la comparaison.
+        <button type="button" class="btn btn-ghost" id="prevBtn">
+          <i class="bi bi-arrow-left-short me-1"></i> Retour
+        </button>
+
+        <div class="spacer"></div>
+
+        <div class="tip d-none d-md-block" id="tipText">
+          Étape 1/7 — Vérifie les entêtes puis clique « Suivant ».
         </div>
-        <button class="cta" name="action" value="save_config">
+
+        <div class="spacer d-none d-md-block"></div>
+
+        <!-- Suivant -->
+        <button type="button" class="cta" id="nextBtn">
+          Suivant <i class="bi bi-arrow-right-short ms-1"></i>
+        </button>
+
+        <!-- Lancer (visible uniquement à l’étape 7) -->
+        <button type="button" class="cta d-none" id="finishBtn">
           <i class="bi bi-rocket-takeoff me-2"></i> Lancer la comparaison
         </button>
       </div>
     </div>
 
+    <!-- ======= MODAL VALIDATION -->
+    <div class="modal fade" id="guardModal" tabindex="-1" aria-hidden="true">
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content" style="border-radius:16px">
+          <div class="modal-header" style="border-bottom:1px solid #eef0f4">
+            <h5 class="modal-title"><i class="bi bi-exclamation-triangle me-2"></i>Complète cette étape</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
+          </div>
+          <div class="modal-body">
+            <div id="guardBody" class="text-slate-700">
+              <!-- message injecté par JS -->
+            </div>
+          </div>
+          <div class="modal-footer" style="border-top:1px solid #eef0f4">
+            <button type="button" class="btn btn-primary" data-bs-dismiss="modal">OK, je complète</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
   </form>
 </div>
+
+<script>
+(function(){
+  const TOTAL_STEPS = 7;
+  const form = document.getElementById('cfg-form');
+  const actionField = document.getElementById('actionField');
+
+  let current = 1;
+
+  // Elements
+  const steps = Array.from(document.querySelectorAll('.wizard-step'));
+  const pills = Array.from(document.querySelectorAll('.step-pill'));
+  const prevBtn = document.getElementById('prevBtn');
+  const nextBtn = document.getElementById('nextBtn');
+  const finishBtn = document.getElementById('finishBtn');
+  const tipText = document.getElementById('tipText');
+  const applyHeadersBtn = document.getElementById('applyHeadersBtn');
+
+  // Bootstrap modal
+  let guardModal, guardBody;
+  document.addEventListener('DOMContentLoaded', () => {
+    guardBody = document.getElementById('guardBody');
+    const el = document.getElementById('guardModal');
+    guardModal = new bootstrap.Modal(el);
+  });
+
+  // Map des sélecteurs à valider par étape
+  const SEL = {
+    1: ['#id_header_web1', '#id_header_desktop'],
+    2: ['#id_name'],
+    3: ['#id_columns_web1'],
+    4: ['#id_columns_desktop'],
+    5: ['#id_join_key_web1'],
+    6: ['#id_join_key_desktop'],
+    7: ['#id_join_type']
+  };
+
+  function getMultiLength(el){
+    if(!el) return 0;
+    if(el.tagName === 'SELECT' && el.multiple){
+      return Array.from(el.options).filter(o=>o.selected && o.value !== '').length;
+    }
+    // Django Select2/Chosen support (si présent)
+    if(el.closest('.select2') || el.dataset.select2Id){
+      const values = (window.$ && window.$(el).val()) || [];
+      return (values || []).length;
+    }
+    return el.value ? 1 : 0;
+  }
+
+  function validateStep(step){
+    const selectors = SEL[step] || [];
+    const missing = [];
+
+    selectors.forEach(s => {
+      const el = document.querySelector(s);
+      if(!el) return;
+      const isSelect = el.tagName === 'SELECT';
+      const isMulti = isSelect && el.multiple;
+
+      if(isMulti){
+        if(getMultiLength(el) === 0){
+          missing.push(el.getAttribute('aria-label') || el.name || s);
+        }
+      }else{
+        const val = (el.value || '').trim();
+        if(!val){
+          missing.push(el.getAttribute('aria-label') || el.name || s);
+        }
+      }
+    });
+
+    // Règle métier : même nombre de clés entre steps 5 et 6
+    if(step === 6){
+      const w = document.querySelector('#id_join_key_web1');
+      const d = document.querySelector('#id_join_key_desktop');
+      if(w && d){
+        const lw = getMultiLength(w);
+        const ld = getMultiLength(d);
+        if(lw !== 0 && ld !== 0 && lw !== ld){
+          missing.push(`Le nombre de clés Desktop (${ld}) doit être égal au nombre de clés Web1 (${lw}).`);
+        }
+      }
+    }
+
+    if(missing.length){
+      const list = '<ul class="mb-0">' + missing.map(m=>`<li>${m}</li>`).join('') + '</ul>';
+      guardBody.innerHTML = `
+        <p>Pour continuer, complète/valide les éléments suivants&nbsp;:</p>
+        ${list}
+      `;
+      guardModal.show();
+      return false;
+    }
+    return true;
+  }
+
+  function validateAll(){
+    for(let s=1; s<=TOTAL_STEPS; s++){
+      if(!validateStep(s)) return false;
+    }
+    return true;
+  }
+
+  function setTip(){
+    const messages = {
+      1: "Étape 1/7 — Vérifie les entêtes puis clique « Suivant ».",
+      2: "Étape 2/7 — Donne un nom à la configuration.",
+      3: "Étape 3/7 — Sélectionne les colonnes Web1 à garder.",
+      4: "Étape 4/7 — Sélectionne les colonnes Desktop à garder.",
+      5: "Étape 5/7 — Choisis les clés de jointure côté Web1 (ordre = priorité).",
+      6: "Étape 6/7 — Aligne les clés de jointure côté Desktop (même ordre).",
+      7: "Étape 7/7 — Choisis le type de jointure, puis lance la comparaison."
+    };
+    tipText.textContent = messages[current] || "";
+  }
+
+  function updatePills(){
+    pills.forEach((p,i)=>{
+      p.classList.remove('active','done');
+      const idx = i+1;
+      if(idx < current) p.classList.add('done');
+      if(idx === current) p.classList.add('active');
+      // verrouille les futures
+      if(idx > current) p.classList.add('disabled'); else p.classList.remove('disabled');
+    });
+  }
+
+  function showStep(n){
+    steps.forEach(s=>{ s.classList.remove('active'); s.classList.add('exiting'); });
+    const target = steps.find(s => +s.dataset.step === n);
+    if(target){
+      setTimeout(()=>{ steps.forEach(s=>s.classList.remove('exiting')); }, 200);
+      target.classList.add('active');
+      current = n;
+      prevBtn.disabled = current === 1;
+      nextBtn.classList.toggle('d-none', current === TOTAL_STEPS);
+      finishBtn.classList.toggle('d-none', current !== TOTAL_STEPS);
+      setTip();
+      updatePills();
+      window.scrollTo({top: document.querySelector('.screen').offsetTop, behavior:'smooth'});
+    }
+  }
+
+  // Buttons
+  prevBtn.addEventListener('click', ()=> showStep(Math.max(1, current-1)));
+
+  nextBtn.addEventListener('click', ()=>{
+    if(!validateStep(current)) return;
+    showStep(Math.min(TOTAL_STEPS, current+1));
+  });
+
+  // Pills: on autorise retour immédiat, mais pour avancer on valide l'étape courante
+  pills.forEach(p => {
+    p.addEventListener('click', ()=>{
+      const target = +p.dataset.pill;
+      if(target <= current){ showStep(target); return; }
+      // avancer -> valider l'étape courante
+      if(validateStep(current)){
+        showStep(current+1);
+      }else{
+        // le modal montre ce qui manque
+      }
+    });
+  });
+
+  // Step 1: "Appliquer" (POST) sans quitter l’étape, mais vérifie qu’au moins une ligne est choisie
+  if(applyHeadersBtn){
+    applyHeadersBtn.addEventListener('click', ()=>{
+      if(!validateStep(1)) return;
+      actionField.value = 'apply_headers';
+      form.submit();
+    });
+  }
+
+  // Finish: POST final (valide tout)
+  finishBtn.addEventListener('click', ()=>{
+    if(!validateAll()) return;
+    actionField.value = 'save_config';
+    form.submit();
+  });
+
+  // Init
+  showStep(1);
+})();
+</script>
 {% endblock %}

@@ -1,0 +1,69 @@
+Jour,Sujet
+S1J1,"Installer l’environnement (Java, Selenium, IDE) + premier test"
+S1J2,"Localiser des éléments (ID, XPath, CSS)"
+S1J3,"Interactions (clic, saisie, navigation)"
+S1J4,Assertions et validations
+S1J5,Gestion des waits (implicit/explicit)
+S1J6,"Popups, frames, onglets multiples"
+S1J7,Mini-projet : automatiser un login simple
+S2J1,Organisation avec JUnit/TestNG
+S2J2,Données de test paramétrées
+S2J3,Screenshots et logs
+S2J4,Page Object Model (POM)
+S2J5,Projet pratique avec POM
+S2J6,Intégration avec Git
+S2J7,Révision + exercices
+S3J1,Gestion des erreurs/exceptions
+S3J2,Data-driven testing
+S3J3,Rapports de tests (Allure/Extent)
+S3J4,Parcours e-commerce (exemple pratique)
+S3J5,Finalisation projet Java-Selenium
+S3J6,Documentation du projet
+S3J7,Bilan & résumé
+S4J1,Requêtes GET/POST simples
+S4J2,Variables et environnements
+S4J3,Tests et assertions
+S4J4,Collections et exécution en série
+S4J5,Newman (ligne de commande)
+S4J6,Projet pratique sur une API publique
+S4J7,Révision
+S5J1,"Bases : projets, exigences, cas de test"
+S5J2,Création d’une campagne
+S5J3,Gestion des exécutions
+S5J4,Suivi et reporting
+S5J5,Cycle complet de test
+S5J6,Révision
+S5J7,Consolidation
+S6J1,"Création de tickets (story, bug, tâche)"
+S6J2,Workflows et transitions
+S6J3,Filtres et JQL
+S6J4,Tableaux Kanban & Scrum
+S6J5,Projet Jira simple
+S6J6,Révision
+S6J7,Consolidation
+S7J1,Création de cas de test dans Xray
+S7J2,Lien avec Jira (story → test)
+S7J3,Exécution et suivi
+S7J4,Rapports et métriques
+S7J5,Projet pratique (user story complète)
+S7J6,Révision
+S7J7,Consolidation
+S8J1,Pages et espaces
+S8J2,Documentation QA (bonnes pratiques)
+S8J3,Lien avec Jira
+S8J4,Mini-projet : plan de test sur Confluence
+S8J5,Révision
+S9J1,Installation Python + Selenium
+S9J2,Premier test
+S9J3,Sélecteurs et interactions
+S9J4,Assertions et waits
+S9J5,Organisation avec pytest
+S9J6,Mini-projet
+S9J7,Révision
+S10J1,Page Object Model
+S10J2,Data-driven testing
+S10J3,Rapports
+S10J4,Exercice parcours utilisateur
+S10J5,Intégration Git
+S10J6,Documentation du projet
+S10J7,Bilan final
